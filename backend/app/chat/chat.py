@@ -4,6 +4,7 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 import logging
 import json
+import re
 from app.rag.rag_query import _looks_like_command_request, retrieve_chunks, build_context
 from app.llm.ollama.ollama_client import ollama_generate
 from app.llm.ollama.ollama_client_stream import ollama_generate_stream
@@ -26,6 +27,13 @@ class ChatResponse(BaseModel):
     used_filters: Dict[str, Any]
 
 OLLAMA_MODEL = "llama2" 
+
+def normalize_whitespace(text: str) -> str:
+    # collapse 3+ newlines into 2 newlines
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    # trim trailing spaces per line
+    text = "\n".join(line.rstrip() for line in text.splitlines())
+    return text.strip()
 
 @router.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest):
@@ -155,21 +163,21 @@ def chat_stream(req: ChatRequest):
             yield f"data: {json.dumps({'type':'done'})}\n\n"
 
         return StreamingResponse(sse_once(), media_type="text/event-stream")
+    else:
+        system = (
+            "You are a precise technical assistant. Use ONLY the provided context. "
+            "Do not invent commands, flags, or steps. "
+            "Avoid time estimates or claims not present in the docs. "
+            "Keep procedures in the original order."
+        )
 
-    system = (
-        "You are a precise technical assistant. Use ONLY the provided context. "
-        "Do not invent commands, flags, or steps. "
-        "Avoid time estimates or claims not present in the docs. "
-        "Keep procedures in the original order."
-    )
+        sources_text = "\n".join(f"- {s['source']}" for s in ctx["sources"])
 
-    sources_text = "\n".join(f"- {s['source']}" for s in ctx["sources"])
+        prompt = f"""User question:
+        {req.message}
 
-    prompt = f"""User question:
-    {req.message}
-
-    Context:
-        {ctx['context_text']}
+        Context:
+            {ctx['context_text']}
 
         Instructions:
         - Answer using the context only.
