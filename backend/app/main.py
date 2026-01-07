@@ -46,10 +46,13 @@ def create_app() -> FastAPI:
     # Configure CORS
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.cors_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        allow_origins=[
+            "http://localhost:5173",  # Vite default
+            "http://127.0.0.1:5173",
+        ],
     )
 
     app.include_router(chat.router)
