@@ -1,0 +1,43 @@
+# ===== GLOBAL =====
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+
+# ===== BACKEND (Python) =====
+
+# Bytecode and caches
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.pyc
+backend/*.pyo
+
+# Virtual environments used by backend
+backend/.venv/
+backend/venv/
+backend/env/
+
+# Local database files if any
+backend/chroma_db/
+backend/out/
+backend/tmp/
+backend/data/
+
+# Environment variables – very important for later
+backend/*.env
+
+
+# ===== FRONTEND (Node/React) =====
+
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+
+# Package manager debug files
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
