@@ -1,7 +1,8 @@
 export type SSEMessage =
   | { type: "meta"; sources?: unknown[] }
   | { type: "delta"; text: string }
-  | { type: "done" };
+  | { type: "done" }
+  | { type: "final"; text: string };
 
 export async function postSSE(
   url: string,

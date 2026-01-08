@@ -126,6 +126,18 @@ export default function App() {
             abortRef.current = null;
             return;
           }
+
+          if (msg.type === "final") {
+            setActiveAssistantId(null); // ✅ clear loader when final arrives
+            setMessages((prev) =>
+              prev.map((x) =>
+                x.id === assistantId
+                  ? { ...x, content: msg.text ?? x.content }
+                  : x
+              )
+            );
+            return;
+          }
         },
         abort.signal
       );

@@ -28,6 +28,8 @@ class ChatResponse(BaseModel):
 
 OLLAMA_MODEL = "llama2" 
 
+MAX_DISTANCE = 0.50 
+
 def normalize_whitespace(text: str) -> str:
     # collapse 3+ newlines into 2 newlines
     text = re.sub(r"\n{3,}", "\n\n", text)
@@ -179,6 +181,28 @@ def wrap_command_runs(markdown: str, lang: str = "bash") -> str:
 #         },
 #     )
 
+def stream_not_found(message: str = "NOT_FOUND: Not covered by the indexed runbook documents."):
+    def gen():
+        # meta first (so UI can show sources = [])
+        yield f"data: {json.dumps({'type':'meta','sources': []}, ensure_ascii=False)}\n\n"
+
+        # final replaces content in your semi-streaming UI
+        yield f"data: {json.dumps({'type':'final','text': message}, ensure_ascii=False)}\n\n"
+
+        # done ends the stream
+        yield f"data: {json.dumps({'type':'done'}, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        gen(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            # Nginx users: prevents buffering (safe even if not using nginx)
+            "X-Accel-Buffering": "no",
+        },
+    )
+
 @router.post("/chat/stream")
 def chat_stream(req: ChatRequest):
     hits = retrieve_chunks(
@@ -188,6 +212,17 @@ def chat_stream(req: ChatRequest):
         section_contains=req.section_contains,
     )
 
+    if not hits:
+        return stream_not_found()
+
+    best_dist = hits[0].get("distance")
+
+    print("best_dist", best_dist, "query", req.message)
+
+    # ✅ even if hits=1, reject if irrelevant
+    if best_dist is not None and best_dist > MAX_DISTANCE:
+        return stream_not_found()
+    
     ctx = build_context(req.message, hits)
 
     mode = decide_mode(req.message, hits)
@@ -236,10 +271,12 @@ def chat_stream(req: ChatRequest):
 
     def sse_gen():
         # send sources first (so UI can show “grounding” immediately if you want)
+        # send sources early
         yield f"data: {json.dumps({'type':'meta','sources':ctx['sources']}, ensure_ascii=False)}\n\n"
 
-        # 1) buffer all deltas
         parts = []
+
+        # stream raw deltas immediately
         for chunk in ollama_generate_stream(
             model=OLLAMA_MODEL,
             prompt=prompt,
@@ -247,16 +284,16 @@ def chat_stream(req: ChatRequest):
             temperature=0.2,
         ):
             parts.append(chunk)
+            yield f"data: {json.dumps({'type':'delta','text':chunk}, ensure_ascii=False)}\n\n"
 
+            # build final formatted answer
             full = "".join(parts)
-
-            # 2) normalize + wrap command runs into fenced code blocks
             full = normalize_whitespace(full)
             full = wrap_command_runs(full, lang="bash")
 
-            # 3) send as one delta
-            yield f"data: {json.dumps({'type':'delta','text':full}, ensure_ascii=False)}\n\n"
-    
+            # send final replacement (client will replace assistant content with this)
+            yield f"data: {json.dumps({'type':'final','text':full}, ensure_ascii=False)}\n\n"
+
         yield f"data: {json.dumps({'type':'done'}, ensure_ascii=False)}\n\n"
 
     return StreamingResponse(sse_gen(), media_type="text/event-stream")

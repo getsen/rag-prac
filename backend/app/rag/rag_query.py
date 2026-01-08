@@ -11,25 +11,21 @@ CHUNKS_COLLECTION = "runbook_chunks"
 EMBED_MODEL = "BAAI/bge-small-en-v1.5"
 
 COMMAND_INTENT_RE = re.compile(
-    r"\b(commands?|steps?|run|execute|install|setup|deploy|onboard|restart|kubectl|systemctl|apt-get|yum)\b",
+    r"\b(commands?|steps?|step\s*by\s*step|run|execute|install|setup|deploy|onboard|restart|verify)\b",
     re.IGNORECASE,
 )
 
-def decide_mode(message: str, hits: List[Dict[str, Any]]) -> str:
-    """Return 'commands_only' if this looks like an execution request and we have command chunks."""
+def decide_mode(message: str, hits: list[dict]) -> str:
     msg_intent = bool(COMMAND_INTENT_RE.search(message))
-
     has_command_hits = any(
-        (h["metadata"].get("kind") == "step" and h["metadata"].get("has_code") is True and (h["metadata"].get("commands") or []))
+        (h["metadata"].get("kind") == "step"
+         and h["metadata"].get("has_code") is True
+         and (h["metadata"].get("commands") or []))
         for h in hits
     )
 
-    # Strong signal: user asks for commands/steps AND we have executable chunks
+    # ✅ only commands_only when user intent is commands AND we have commands
     if msg_intent and has_command_hits:
-        return "commands_only"
-
-    # If retrieval already expanded into step chunks w/ commands, often safest to return commands_only
-    if has_command_hits and (len(hits) >= 1) and hits[0]["metadata"].get("kind") == "step":
         return "commands_only"
 
     return "normal"
@@ -99,6 +95,7 @@ def expand_procedure_steps(
     col,
     doc_id: str,
     section_path_str: str,
+    best_distance: Optional[float] = None,
 ) -> List[Dict[str, Any]]:
     """
     Deterministic fetch of *all step chunks* for a given doc + section, ordered by step_no.
@@ -122,7 +119,7 @@ def expand_procedure_steps(
             {
                 "text": doc_text,
                 "metadata": _decode_metadata(md),
-                "distance": None,  # not applicable
+                "distance": best_distance,  # not applicable
             }
         )
 
@@ -149,6 +146,8 @@ def retrieve_chunks(
     where = _build_where(kind_filter, require_code)
     hits = retrieve_semantic_hits(col=col, query=query, k=k, where=where)
 
+    print(f"Retrieved {len(hits)} initial hits for query '{query}'")
+
     # Optional post-filter for substring match (Chroma where is often exact-match only)
     if section_contains:
         hits = [
@@ -164,8 +163,9 @@ def retrieve_chunks(
     if best.get("kind") == "step":
         doc_id = best.get("doc_id")
         section = best.get("section_path_str")
+        best_dist = hits[0].get("distance")
         if doc_id and section:
-            return expand_procedure_steps(col=col, doc_id=doc_id, section_path_str=section)
+            return expand_procedure_steps(col=col, doc_id=doc_id, section_path_str=section, best_distance=best_dist)
 
     return hits
 
