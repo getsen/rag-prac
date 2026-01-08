@@ -1,6 +1,7 @@
 # rag_query.py
 import json
 from typing import Any, Dict, List, Optional, Tuple
+import re
 
 import chromadb
 from sentence_transformers import SentenceTransformer
@@ -9,6 +10,29 @@ DB_DIR = "chroma_db"
 CHUNKS_COLLECTION = "runbook_chunks"
 EMBED_MODEL = "BAAI/bge-small-en-v1.5"
 
+COMMAND_INTENT_RE = re.compile(
+    r"\b(commands?|steps?|run|execute|install|setup|deploy|onboard|restart|kubectl|systemctl|apt-get|yum)\b",
+    re.IGNORECASE,
+)
+
+def decide_mode(message: str, hits: List[Dict[str, Any]]) -> str:
+    """Return 'commands_only' if this looks like an execution request and we have command chunks."""
+    msg_intent = bool(COMMAND_INTENT_RE.search(message))
+
+    has_command_hits = any(
+        (h["metadata"].get("kind") == "step" and h["metadata"].get("has_code") is True and (h["metadata"].get("commands") or []))
+        for h in hits
+    )
+
+    # Strong signal: user asks for commands/steps AND we have executable chunks
+    if msg_intent and has_command_hits:
+        return "commands_only"
+
+    # If retrieval already expanded into step chunks w/ commands, often safest to return commands_only
+    if has_command_hits and (len(hits) >= 1) and hits[0]["metadata"].get("kind") == "step":
+        return "commands_only"
+
+    return "normal"
 
 def _looks_like_command_request(q: str) -> bool:
     ql = q.lower()

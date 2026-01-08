@@ -37,7 +37,6 @@ export default function App() {
     null
   );
   const [isStreaming, setIsStreaming] = useState(false);
-  const [mode, setMode] = useState<"normal" | "commands_only">("normal");
   const [requireCode, setRequireCode] = useState(true);
   const [kind, setKind] = useState<string>("step");
   const [topK, setTopK] = useState(8);
@@ -88,7 +87,6 @@ export default function App() {
       kind: kind || null,
       require_code: requireCode,
       section_contains: null,
-      mode,
     };
 
     const abort = new AbortController();
@@ -158,19 +156,6 @@ export default function App() {
         <div className="header-inner">
           <div className="brand">RAG Runbook Chat</div>
           <div className="controls">
-            <label>
-              Mode:&nbsp;
-              <select
-                value={mode}
-                onChange={(e) =>
-                  setMode(e.target.value as "normal" | "commands_only")
-                }
-              >
-                <option value="normal">normal</option>
-                <option value="commands_only">commands_only</option>
-              </select>
-            </label>
-
             <label>
               Kind:&nbsp;
               <select value={kind} onChange={(e) => setKind(e.target.value)}>
