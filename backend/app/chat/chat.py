@@ -28,7 +28,7 @@ class ChatResponse(BaseModel):
 
 OLLAMA_MODEL = "llama2" 
 
-MAX_DISTANCE = 0.50 
+MAX_DISTANCE = 0.60 
 
 def normalize_whitespace(text: str) -> str:
     # collapse 3+ newlines into 2 newlines
@@ -79,107 +79,6 @@ def wrap_command_runs(markdown: str, lang: str = "bash") -> str:
 
     flush()
     return "\n".join(out).strip()
-
-
-# @router.post("/chat", response_model=ChatResponse)
-# def chat(req: ChatRequest):
-#     # Retrieval defaults:
-#     # - If asking for commands/steps, it's often best to bias to step chunks w/ code
-#     # You can override via request fields.
-#     hits = retrieve_chunks(
-#         query=req.message,
-#         k=req.top_k,
-#         kind_filter=req.kind,
-#         require_code=req.require_code,
-#         section_contains=req.section_contains,
-#     )
-
-#     ctx = build_context(req.message, hits)
-
-#     # auto suggest mode
-#     if req.mode == "normal" and _looks_like_command_request(req.message):
-#         inferred_mode = "commands_only"
-#     else:
-#         inferred_mode = req.mode
-
-#     logger.info(f"Chat inferred mode: {inferred_mode}")
-    
-#     if inferred_mode == "commands_only":
-#         # system = (
-#         #     "You are a precise runbook assistant. Use ONLY the provided context. "
-#         #     "Return ONLY the commands, in execution order, one per line. "
-#         #     "Do not add explanations. Do not add extra commands. "
-#         #     "If the commands are not present in the context, reply exactly: NOT_FOUND"
-#         # )
-
-#         # prompt = f"""User question:
-#         # {req.message}
-
-#         # Context:
-#         # {ctx['context_text']}
-
-#         # Return ONLY the commands, one per line, in order:
-#         # """
-
-#         # flatten commands from hits in order
-#         cmds = []
-#         for h in hits:
-#             cmds.extend(h["metadata"].get("commands") or [])
-#         cmds = [c for c in cmds if c.strip()]
-
-#         answer = "\n".join(cmds) if cmds else "NOT_FOUND"
-
-#         if answer != "NOT_FOUND":
-#             # Choose language if you can infer; bash is safe default
-#             answer = f"```bash\n{answer}\n```"
-
-#         return ChatResponse(
-#             answer=answer,
-#             sources=ctx["sources"],
-#             used_filters={
-#                 "top_k": req.top_k,
-#                 "kind": req.kind,
-#                 "require_code": req.require_code,
-#                 "section_contains": req.section_contains,
-#                 "mode": req.mode,
-#             },
-#         )
-#     else:
-#         system = (
-#             "You are a precise technical assistant. Use ONLY the provided context. "
-#             "Do not invent commands, flags, or steps. "
-#             "If the answer is not in the context, say you cannot find it in the docs. "
-#             "Keep steps/commands in original order. "
-#             "Avoid time estimates or operational claims not present in the docs."
-#         )
-#         sources_text = "\n".join(f"- {s['source']}" for s in ctx["sources"])
-#         prompt = f"""User question:
-#         {req.message}
-
-#         Context:
-#         {ctx['context_text']}
-
-#         Instructions:
-#         - Answer using the context only.
-#         - If providing steps/commands, keep order and be brief.
-#         - Sources:
-#         {sources_text}
-
-#         Answer:
-#     """
-
-#     answer = ollama_generate(model=OLLAMA_MODEL, prompt=prompt, system=system, temperature=0.2)
-
-#     return ChatResponse(
-#         answer=answer.strip(),
-#         sources=ctx["sources"],
-#         used_filters={
-#             "top_k": req.top_k,
-#             "kind": req.kind,
-#             "require_code": req.require_code,
-#             "section_contains": req.section_contains,
-#         },
-#     )
 
 def stream_not_found(message: str = "NOT_FOUND: Not covered by the indexed runbook documents."):
     def gen():
@@ -245,13 +144,25 @@ def chat_stream(req: ChatRequest):
         return StreamingResponse(sse_once(), media_type="text/event-stream")
     else:
         system = (
-            "You are a precise technical assistant. Use ONLY the provided context. "
-            "Do not invent commands, flags, or steps. "
-            "Avoid time estimates or claims not present in the docs. "
-            "Keep procedures in the original order."
-        )
+            "You are a factual technical assistant.\n"
+            "You must respond using ONLY the provided context content.\n\n"
 
-        sources_text = "\n".join(f"- {s['source']}" for s in ctx["sources"])
+            "CRITICAL RULES:\n"
+            "- NEVER mention files, folders, paths, documents, links, or navigation steps.\n"
+            "- NEVER say things like 'open', 'navigate', 'refer to', 'click', or 'see section'.\n"
+            "- NEVER explain where the information comes from.\n"
+            "- NEVER describe how to access the content.\n\n"
+
+            "CONTENT RULES:\n"
+            "- If the user asks to 'share', 'explain', or 'describe' something, "
+            "return the actual content itself.\n"
+            "- Summarise or structure the content if needed, but do not add new facts.\n"
+            "- If the context does not contain the requested information, respond with NOT_FOUND.\n\n"
+
+            "FORMATTING RULES:\n"
+            "- Use clear paragraphs, lists, or tables where appropriate.\n"
+            "- Do not include disclaimers or meta commentary.\n"
+        )
 
         prompt = f"""User question:
         {req.message}
@@ -262,9 +173,9 @@ def chat_stream(req: ChatRequest):
         Instructions:
         - Answer using the context only.
         - If commands/steps are required, keep order and be concise.
-        - End with:
-        Sources:
-        {sources_text}
+        - Do NOT reference files, folders, or documents.
+        - Return the requested information directly.
+        - If information is missing, respond with NOT_FOUND.
 
         Answer:
     """
