@@ -234,3 +234,17 @@ select, input[type="checkbox"] {
   0%, 80%, 100% { transform: translateY(0); opacity: 0.5; }
   40% { transform: translateY(-4px); opacity: 1; }
 }
+
+details > summary::marker {
+  display: none;
+}
+
+details > summary::after {
+  content: "▸";
+  margin-left: 6px;
+  font-size: 12px;
+}
+
+details[open] > summary::after {
+  content: "▾";
+}

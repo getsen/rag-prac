@@ -9,11 +9,8 @@ from sentence_transformers import SentenceTransformer
 
 logger = logging.getLogger(__name__)
 
-COMMAND_INTENT_RE = re.compile(
-    r"\b(commands?|steps?|step\s*by\s*step|run|execute|install|setup|deploy|onboard|restart|verify)\b",
-    re.IGNORECASE,
-)
-
+MAX_DISTANCE = 0.35
+DEFAULT_TOP_K = 8
 
 class RAGQueryEngine:
     """Orchestrates RAG queries with semantic search and context building."""
@@ -22,7 +19,7 @@ class RAGQueryEngine:
         self,
         db_dir: str = "chroma_db",
         chunks_collection: str = "runbook_chunks",
-        embed_model: str = "BAAI/bge-small-en-v1.5",
+        embed_model: str = "BAAI/bge-large-en-v1.5",
     ):
         """
         Initialize RAGQueryEngine.
@@ -37,13 +34,6 @@ class RAGQueryEngine:
         self.embed_model = embed_model
         self.client = chromadb.PersistentClient(path=db_dir)
         logger.info(f"RAGQueryEngine initialized with db_dir={db_dir}, collection={chunks_collection}, model={embed_model}")
-
-    @staticmethod
-    def _looks_like_command_request(q: str) -> bool:
-        """Check if query is asking for commands/steps."""
-        ql = q.lower()
-        keywords = ["commands", "command", "steps", "step by step", "run", "execute", "install", "setup", "onboard"]
-        return any(k in ql for k in keywords)
 
     @staticmethod
     def _and_where(clauses: List[dict]) -> Optional[dict]:
@@ -141,129 +131,102 @@ class RAGQueryEngine:
     def retrieve_chunks(
         self,
         query: str,
-        k: int = 8,
-        kind_filter: Optional[str] = None,
-        require_code: bool = False,
-        section_contains: Optional[str] = None,
+        k: int = DEFAULT_TOP_K,
     ) -> List[Dict[str, Any]]:
         """
         Orchestrate RAG retrieval:
         1) Semantic search
-        2) Optional section post-filter
-        3) Expand to full procedure steps if applicable
+        2) Relevance gate
+        3) Deterministic step expansion (if applicable)
         """
         col = self.client.get_collection(name=self.chunks_collection)
 
-        where = self._build_where(kind_filter, require_code)
-        hits = self._retrieve_semantic_hits(col=col, query=query, k=k, where=where)
-
-        logger.info(f"Retrieved {len(hits)} initial hits for query '{query}'")
-
-        # Optional post-filter for substring match
-        if section_contains:
-            hits = [
-                h
-                for h in hits
-                if section_contains in (h["metadata"].get("section_path_str") or "")
-            ]
+        hits = self._retrieve_semantic_hits(
+            col=col,
+            query=query,
+            k=k,
+            where=None,  # 🔥 no filters from UI
+        )
 
         if not hits:
-            logger.warning(f"No hits found after filtering for query: {query}")
+            logger.warning(f"No semantic hits for query: {query}")
             return []
 
-        best = hits[0]["metadata"]
-        if best.get("kind") == "step":
-            doc_id = best.get("doc_id")
-            section = best.get("section_path_str")
-            best_dist = hits[0].get("distance")
+        # 🔒 Relevance gate (CRITICAL)
+        best_dist = hits[0]["distance"]
+        if best_dist is None or best_dist > MAX_DISTANCE:
+            logger.info(
+                f"Query '{query}' rejected by distance gate (dist={best_dist})"
+            )
+            return []
+
+        best_md = hits[0]["metadata"]
+
+        # 🔁 Auto-expand procedures
+        if best_md.get("kind") == "step":
+            doc_id = best_md.get("doc_id")
+            section = best_md.get("section_path_str")
             if doc_id and section:
-                logger.debug(f"Expanding to full procedure steps")
-                return self._expand_procedure_steps(col=col, doc_id=doc_id, section_path_str=section, best_distance=best_dist)
+                return self._expand_procedure_steps(
+                    col=col,
+                    doc_id=doc_id,
+                    section_path_str=section,
+                    best_distance=best_dist,
+                )
 
         return hits
 
-    def build_context(self, query: str, hits: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Create context object for LLM prompting."""
-        wants_commands = self._looks_like_command_request(query)
-
-        sources = []
-        context_blocks = []
+    def build_context(self, hits: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Build clean context for the LLM.
+        - No source paths
+        - No file names
+        - No instructions
+        """
+        context_blocks: List[str] = []
+        sources: List[Dict[str, Any]] = []
 
         for h in hits:
             md = h["metadata"]
-            src = f'{md.get("doc_id")}:{md.get("start_line")}-{md.get("end_line")}'
+            text = h["text"].strip()
+
+            commands = md.get("commands") or []
+            if commands:
+                block = (
+                    f"{text}\n\n"
+                    "```bash\n"
+                    + "\n".join(commands)
+                    + "\n```"
+                )
+            else:
+                block = text
+
+            context_blocks.append(block)
+
             sources.append(
                 {
-                    "source": src,
+                    "source": f"{md.get('doc_id')}:{md.get('start_line')}-{md.get('end_line')}",
                     "section": md.get("section_path_str"),
-                    "kind": md.get("kind"),
-                    "step_no": md.get("step_no"),
-                    "has_code": md.get("has_code"),
                 }
             )
 
-            # Prefer commands list when user wants commands
-            if wants_commands and md.get("has_code"):
-                cmds = md.get("commands") or []
-                if cmds:
-                    context_blocks.append(
-                        f"Source: {src}\nSection: {md.get('section_path_str')}\n"
-                        + "\n".join(f"- {c}" for c in cmds)
-                    )
-                else:
-                    context_blocks.append(f"Source: {src}\n{h['text']}")
-            else:
-                context_blocks.append(f"Source: {src}\n{h['text']}")
-
         return {
-            "wants_commands": wants_commands,
-            "context_text": "\n\n---\n\n".join(context_blocks),
+            "context_text": "\n\n".join(context_blocks),
             "sources": sources,
         }
-
-    def decide_mode(self, message: str, hits: list[dict]) -> str:
-        """Determine response mode: commands_only or normal."""
-        msg_intent = bool(COMMAND_INTENT_RE.search(message))
-        has_command_hits = any(
-            (h["metadata"].get("kind") == "step"
-             and h["metadata"].get("has_code") is True
-             and (h["metadata"].get("commands") or []))
-            for h in hits
-        )
-
-        # Only commands_only when user intent is commands AND we have commands
-        if msg_intent and has_command_hits:
-            return "commands_only"
-
-        return "normal"
-
 
 # Global engine instance for backward compatibility
 _rag_engine = RAGQueryEngine()
 
-
-def decide_mode(message: str, hits: list[dict]) -> str:
-    """Legacy function for backward compatibility."""
-    return _rag_engine.decide_mode(message, hits)
-
-
 def retrieve_chunks(
-    query: str,
-    k: int = 8,
-    kind_filter: Optional[str] = None,
-    require_code: bool = False,
-    section_contains: Optional[str] = None,
+    query: str, k: int = DEFAULT_TOP_K
 ) -> List[Dict[str, Any]]:
     """Legacy function for backward compatibility."""
     return _rag_engine.retrieve_chunks(
         query=query,
         k=k,
-        kind_filter=kind_filter,
-        require_code=require_code,
-        section_contains=section_contains,
     )
 
-
-def build_context(query: str, hits: List[Dict[str, Any]]) -> Dict[str, Any]:
+def build_context(hits: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Legacy function for backward compatibility."""
-    return _rag_engine.build_context(query=query, hits=hits)
+    return _rag_engine.build_context(hits=hits)

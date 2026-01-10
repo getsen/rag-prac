@@ -37,9 +37,6 @@ export default function App() {
     null
   );
   const [isStreaming, setIsStreaming] = useState(false);
-  const [requireCode, setRequireCode] = useState(true);
-  const [kind, setKind] = useState<string>("step");
-  const [topK, setTopK] = useState(8);
 
   const abortRef = useRef<AbortController | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
@@ -83,9 +80,6 @@ export default function App() {
 
     const body = {
       message: text,
-      top_k: topK,
-      kind: kind || null,
-      require_code: requireCode,
       section_contains: null,
     };
 
@@ -155,60 +149,11 @@ export default function App() {
     }
   };
 
-  const stop = () => {
-    abortRef.current?.abort();
-    abortRef.current = null;
-    setIsStreaming(false);
-    setActiveAssistantId(null);
-  };
-
   return (
     <div className="app">
       <div className="header">
         <div className="header-inner">
           <div className="brand">RAG Runbook Chat</div>
-          <div className="controls">
-            <label>
-              Kind:&nbsp;
-              <select value={kind} onChange={(e) => setKind(e.target.value)}>
-                <option value="">any</option>
-                <option value="step">step</option>
-                <option value="section">section</option>
-                <option value="narrative">narrative</option>
-              </select>
-            </label>
-
-            <label>
-              <input
-                type="checkbox"
-                checked={requireCode}
-                onChange={(e) => setRequireCode(e.target.checked)}
-              />
-              &nbsp;require code
-            </label>
-
-            <label>
-              topK:&nbsp;
-              <select
-                value={topK}
-                onChange={(e) => setTopK(Number(e.target.value))}
-              >
-                {[4, 6, 8, 10, 12].map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            {isStreaming ? (
-              <button onClick={stop}>Stop</button>
-            ) : (
-              <button onClick={send} disabled={!input.trim()}>
-                Send
-              </button>
-            )}
-          </div>
         </div>
       </div>
 
@@ -243,7 +188,14 @@ export default function App() {
                     <div
                       style={{ marginTop: 10, color: "#6b7280", fontSize: 12 }}
                     >
-                      <div style={{ fontWeight: 600, marginBottom: 6 }}>
+                      <div
+                        style={{
+                          fontWeight: 600,
+                          marginBottom: 6,
+                          cursor: "pointer",
+                          listStyle: "none",
+                        }}
+                      >
                         Sources
                       </div>
                       <ul style={{ margin: 0, paddingLeft: 18 }}>

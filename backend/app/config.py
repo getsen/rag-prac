@@ -54,7 +54,7 @@ class Settings(BaseSettings):
     chroma_db_dir: str = "chroma_db"
     chroma_chunks_collection: str = "runbook_chunks"
     chroma_docs_collection: str = "runbook_docs"
-    chroma_embed_model: str = "BAAI/bge-small-en-v1.5"  # Embedding model for ChromaDB
+    chroma_embed_model: str = "BAAI/bge-large-en-v1.5"  # Embedding model for ChromaDB
     
     # OpenAI Embedding settings (optional, for company internal embedding models)
     use_openai_embeddings: bool = False  # Flag to enable OpenAI API embeddings

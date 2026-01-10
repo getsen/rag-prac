@@ -6,8 +6,7 @@ import logging
 import json
 import re
 from app.config import settings
-from app.rag.rag_query import decide_mode, retrieve_chunks, build_context
-from app.llm.ollama.ollama_client import ollama_generate
+from app.rag.rag_query import retrieve_chunks, build_context
 from app.llm.ollama.ollama_client_stream import ollama_generate_stream
 
 
@@ -17,9 +16,6 @@ router = APIRouter(prefix="/api", tags=["chat"])
 
 class ChatRequest(BaseModel):
     message: str
-    top_k: int = 8
-    kind: Optional[str] = None
-    require_code: bool = False
     section_contains: Optional[str] = None
 
 class ChatResponse(BaseModel):
@@ -115,10 +111,7 @@ class ChatService:
     def process_chat_stream(self, req: ChatRequest) -> StreamingResponse:
         """Process a chat request and return streaming response."""
         hits = retrieve_chunks(
-            query=req.message,
-            k=req.top_k,
-            kind_filter=req.kind,
-            section_contains=req.section_contains,
+            query=req.message
         )
 
         if not hits:
@@ -132,14 +125,8 @@ class ChatService:
             logger.warning(f"Query rejected: distance {best_dist} exceeds max_distance {self.max_distance}")
             return self.stream_not_found()
         
-        ctx = build_context(req.message, hits)
-        mode = decide_mode(req.message, hits)
-
-        # commands_only mode: return only commands
-        if mode == "commands_only":
-            return self._stream_commands_only(hits)
-        else:
-            return self._stream_with_context(req.message, ctx)
+        ctx = build_context(hits)
+        return self._stream_with_context(req.message, ctx)
 
     def _stream_commands_only(self, hits: List[Dict[str, Any]]) -> StreamingResponse:
         """Stream only command lines without LLM processing."""
@@ -181,7 +168,7 @@ class ChatService:
             "- Do not include disclaimers or meta commentary.\n"
         )
 
-        prompt = f"""User question:
+        prompt = f"""Represent this sentence for searching relevant passages: 
         {query}
 
         Context:
@@ -190,6 +177,10 @@ class ChatService:
         Instructions:
         - Answer using the context only.
         - If commands/steps are required, keep order and be concise.
+        - Automatically detect any commands, configuration, or code.
+        - Separate them from explanatory text.
+        - Each block must be explicitly labeled as "text" or "code".
+        - Do not merge text and code in the same block.
         - Do NOT reference files, folders, or documents.
         - Return the requested information directly.
         - If information is missing, respond with NOT_FOUND.
