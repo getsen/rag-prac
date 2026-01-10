@@ -50,6 +50,12 @@ class Settings(BaseSettings):
     # Embedding settings
     embedding_model: str = "all-MiniLM-L6-v2"
     
+    # ChromaDB embedding settings
+    chroma_db_dir: str = "chroma_db"
+    chroma_chunks_collection: str = "runbook_chunks"
+    chroma_docs_collection: str = "runbook_docs"
+    chroma_embed_model: str = "BAAI/bge-small-en-v1.5"  # Embedding model for ChromaDB
+    
     # OpenAI Embedding settings (optional, for company internal embedding models)
     use_openai_embeddings: bool = False  # Flag to enable OpenAI API embeddings
     openai_embedding_model: str = "text-embedding-ada-002"  # OpenAI embedding model name
@@ -72,3 +78,7 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Get cached settings instance."""
     return Settings()
+
+
+# Global settings instance for easy access
+settings = get_settings()

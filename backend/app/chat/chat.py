@@ -5,6 +5,7 @@ from fastapi.responses import StreamingResponse
 import logging
 import json
 import re
+from app.config import settings
 from app.rag.rag_query import decide_mode, retrieve_chunks, build_context
 from app.llm.ollama.ollama_client import ollama_generate
 from app.llm.ollama.ollama_client_stream import ollama_generate_stream
@@ -26,108 +27,122 @@ class ChatResponse(BaseModel):
     sources: List[Dict[str, Any]]
     used_filters: Dict[str, Any]
 
-OLLAMA_MODEL = "llama2" 
 
-MAX_DISTANCE = 0.60 
+class ChatService:
+    """Service for handling chat operations with RAG context."""
+    
+    def __init__(
+        self,
+        ollama_model: str = "llama2",
+        max_distance: float = 0.60,
+        temperature: float = 0.2,
+    ):
+        """
+        Initialize ChatService.
+        
+        Args:
+            ollama_model: Ollama model to use (default from config or "llama2")
+            max_distance: Maximum distance threshold for relevant chunks
+            temperature: Temperature for model generation
+        """
+        self.ollama_model = ollama_model or (settings.ollama_model if hasattr(settings, 'ollama_model') else "llama2")
+        self.max_distance = max_distance
+        self.temperature = temperature
+        self.command_line_re = re.compile(
+            r"^\s*(sudo\s+|kubectl\s+|systemctl\s+|apt-get\s+|yum\s+|docker\s+|helm\s+|npm\s+|yarn\s+|python\s+|pip\s+|curl\s+|wget\s+|git\s+)",
+            re.IGNORECASE,
+        )
+        logger.info(f"ChatService initialized with ollama_model={self.ollama_model}, max_distance={self.max_distance}")
 
-def normalize_whitespace(text: str) -> str:
-    # collapse 3+ newlines into 2 newlines
-    text = re.sub(r"\n{3,}", "\n\n", text)
-    # trim trailing spaces per line
-    text = "\n".join(line.rstrip() for line in text.splitlines())
-    return text.strip()
+    @staticmethod
+    def normalize_whitespace(text: str) -> str:
+        """Normalize whitespace in text."""
+        text = re.sub(r"\n{3,}", "\n\n", text)
+        text = "\n".join(line.rstrip() for line in text.splitlines())
+        return text.strip()
 
-COMMAND_LINE_RE = re.compile(
-    r"^\s*(sudo\s+|kubectl\s+|systemctl\s+|apt-get\s+|yum\s+|docker\s+|helm\s+|npm\s+|yarn\s+|python\s+|pip\s+|curl\s+|wget\s+|git\s+)",
-    re.IGNORECASE,
-)
+    def wrap_command_runs(self, markdown: str, lang: str = "bash") -> str:
+        """Wrap standalone command lines in code fences."""
+        lines = markdown.splitlines()
+        out = []
+        in_fence = False
+        cmd_buf = []
 
-def normalize_whitespace(text: str) -> str:
-    text = re.sub(r"\n{3,}", "\n\n", text)
-    text = "\n".join(line.rstrip() for line in text.splitlines())
-    return text.strip()
+        def flush():
+            nonlocal cmd_buf
+            if cmd_buf:
+                out.append(f"```{lang}")
+                out.extend(cmd_buf)
+                out.append("```")
+                cmd_buf = []
 
-def wrap_command_runs(markdown: str, lang: str = "bash") -> str:
-    lines = markdown.splitlines()
-    out = []
-    in_fence = False
-    cmd_buf = []
+        for line in lines:
+            s = line.strip()
 
-    def flush():
-        nonlocal cmd_buf
-        if cmd_buf:
-            out.append(f"```{lang}")
-            out.extend(cmd_buf)
-            out.append("```")
-            cmd_buf = []
+            if s.startswith("```"):
+                flush()
+                out.append(line)
+                in_fence = not in_fence
+                continue
 
-    for line in lines:
-        s = line.strip()
+            if not in_fence and self.command_line_re.match(line):
+                cmd_buf.append(line.rstrip())
+                continue
 
-        if s.startswith("```"):
             flush()
             out.append(line)
-            in_fence = not in_fence
-            continue
-
-        if not in_fence and COMMAND_LINE_RE.match(line):
-            cmd_buf.append(line.rstrip())
-            continue
 
         flush()
-        out.append(line)
+        return "\n".join(out).strip()
 
-    flush()
-    return "\n".join(out).strip()
+    def stream_not_found(self, message: str = "NOT_FOUND: Not covered by the indexed runbook documents.") -> StreamingResponse:
+        """Return a streaming response indicating query was not found."""
+        def gen():
+            yield f"data: {json.dumps({'type':'meta','sources': []}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'type':'final','text': message}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'type':'done'}, ensure_ascii=False)}\n\n"
 
-def stream_not_found(message: str = "NOT_FOUND: Not covered by the indexed runbook documents."):
-    def gen():
-        # meta first (so UI can show sources = [])
-        yield f"data: {json.dumps({'type':'meta','sources': []}, ensure_ascii=False)}\n\n"
+        return StreamingResponse(
+            gen(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
 
-        # final replaces content in your semi-streaming UI
-        yield f"data: {json.dumps({'type':'final','text': message}, ensure_ascii=False)}\n\n"
+    def process_chat_stream(self, req: ChatRequest) -> StreamingResponse:
+        """Process a chat request and return streaming response."""
+        hits = retrieve_chunks(
+            query=req.message,
+            k=req.top_k,
+            kind_filter=req.kind,
+            section_contains=req.section_contains,
+        )
 
-        # done ends the stream
-        yield f"data: {json.dumps({'type':'done'}, ensure_ascii=False)}\n\n"
+        if not hits:
+            logger.warning(f"No relevant chunks found for query: {req.message}")
+            return self.stream_not_found()
 
-    return StreamingResponse(
-        gen(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            # Nginx users: prevents buffering (safe even if not using nginx)
-            "X-Accel-Buffering": "no",
-        },
-    )
+        best_dist = hits[0].get("distance")
+        logger.debug(f"best_dist={best_dist}, query={req.message}")
 
-@router.post("/chat/stream")
-def chat_stream(req: ChatRequest):
-    hits = retrieve_chunks(
-        query=req.message,
-        k=req.top_k,
-        kind_filter=req.kind,
-        section_contains=req.section_contains,
-    )
+        if best_dist is not None and best_dist > self.max_distance:
+            logger.warning(f"Query rejected: distance {best_dist} exceeds max_distance {self.max_distance}")
+            return self.stream_not_found()
+        
+        ctx = build_context(req.message, hits)
+        mode = decide_mode(req.message, hits)
 
-    if not hits:
-        return stream_not_found()
+        # commands_only mode: return only commands
+        if mode == "commands_only":
+            return self._stream_commands_only(hits)
+        else:
+            return self._stream_with_context(req.message, ctx)
 
-    best_dist = hits[0].get("distance")
-
-    print("best_dist", best_dist, "query", req.message)
-
-    # ✅ even if hits=1, reject if irrelevant
-    if best_dist is not None and best_dist > MAX_DISTANCE:
-        return stream_not_found()
-    
-    ctx = build_context(req.message, hits)
-
-    mode = decide_mode(req.message, hits)
-
-    # commands_only: stream is optional; simplest is return once as SSE
-    if mode == "commands_only":
+    def _stream_commands_only(self, hits: List[Dict[str, Any]]) -> StreamingResponse:
+        """Stream only command lines without LLM processing."""
         cmds = []
         for h in hits:
             cmds.extend(h["metadata"].get("commands") or [])
@@ -142,7 +157,9 @@ def chat_stream(req: ChatRequest):
             yield f"data: {json.dumps({'type':'done'})}\n\n"
 
         return StreamingResponse(sse_once(), media_type="text/event-stream")
-    else:
+
+    def _stream_with_context(self, query: str, ctx: Dict[str, Any]) -> StreamingResponse:
+        """Stream LLM response with context."""
         system = (
             "You are a factual technical assistant.\n"
             "You must respond using ONLY the provided context content.\n\n"
@@ -165,7 +182,7 @@ def chat_stream(req: ChatRequest):
         )
 
         prompt = f"""User question:
-        {req.message}
+        {query}
 
         Context:
             {ctx['context_text']}
@@ -180,36 +197,46 @@ def chat_stream(req: ChatRequest):
         Answer:
     """
 
-    def sse_gen():
-        # send sources first (so UI can show “grounding” immediately if you want)
-        # send sources early
-        yield f"data: {json.dumps({'type':'meta','sources':ctx['sources']}, ensure_ascii=False)}\n\n"
+        def sse_gen():
+            # send sources first
+            yield f"data: {json.dumps({'type':'meta','sources':ctx['sources']}, ensure_ascii=False)}\n\n"
 
-        parts = []
+            parts = []
 
-        # stream raw deltas immediately
-        for chunk in ollama_generate_stream(
-            model=OLLAMA_MODEL,
-            prompt=prompt,
-            system=system,
-            temperature=0.2,
-        ):
-            parts.append(chunk)
-            yield f"data: {json.dumps({'type':'delta','text':chunk}, ensure_ascii=False)}\n\n"
+            # stream raw deltas
+            for chunk in ollama_generate_stream(
+                model=self.ollama_model,
+                prompt=prompt,
+                system=system,
+                temperature=self.temperature,
+            ):
+                parts.append(chunk)
+                yield f"data: {json.dumps({'type':'delta','text':chunk}, ensure_ascii=False)}\n\n"
 
-            # build final formatted answer
-            full = "".join(parts)
-            full = normalize_whitespace(full)
-            full = wrap_command_runs(full, lang="bash")
+                # build final formatted answer
+                full = "".join(parts)
+                full = self.normalize_whitespace(full)
+                full = self.wrap_command_runs(full, lang="bash")
 
-            # send final replacement (client will replace assistant content with this)
-            yield f"data: {json.dumps({'type':'final','text':full}, ensure_ascii=False)}\n\n"
+                # send final replacement
+                yield f"data: {json.dumps({'type':'final','text':full}, ensure_ascii=False)}\n\n"
 
-        yield f"data: {json.dumps({'type':'done'}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'type':'done'}, ensure_ascii=False)}\n\n"
 
-    return StreamingResponse(sse_gen(), media_type="text/event-stream")
+        return StreamingResponse(sse_gen(), media_type="text/event-stream")
+
+
+# Initialize service with defaults
+_chat_service = ChatService()
+
+
+@router.post("/chat/stream")
+def chat_stream(req: ChatRequest):
+    """API endpoint for streaming chat responses."""
+    return _chat_service.process_chat_stream(req)
 
 
 @router.get("/health")
 def health():
+    """Health check endpoint."""
     return {"ok": True}
