@@ -124,6 +124,33 @@ class ChunkProcessor:
         if fence_count % 2 == 1:
             return text.rstrip() + "\n```"
         return text
+    
+    @staticmethod
+    def _find_code_block_boundaries(lines: List[str]) -> List[tuple[int, int]]:
+        """
+        Find start and end line indices of all code blocks.
+        Returns list of (start_idx, end_idx) tuples.
+        """
+        boundaries = []
+        in_fence = False
+        fence_start = None
+        
+        for i, line in enumerate(lines):
+            if line.strip().startswith("```"):
+                if not in_fence:
+                    in_fence = True
+                    fence_start = i
+                else:
+                    in_fence = False
+                    if fence_start is not None:
+                        boundaries.append((fence_start, i))
+                        fence_start = None
+        
+        # If unclosed fence, close at end of lines
+        if in_fence and fence_start is not None:
+            boundaries.append((fence_start, len(lines) - 1))
+        
+        return boundaries
 
     def enrich_chunk(self, doc_id: str, text: str, section_path: List[str], header_level: int, 
                     start_line: int, end_line: int, kind: str, step_no: Optional[int]) -> Chunk:
@@ -132,6 +159,16 @@ class ChunkProcessor:
         blocks = self.extract_code_blocks_loose(text)
         cmds = self.extract_commands_from_blocks(blocks)
         has_code = len(blocks) > 0
+        
+        # Extract language hints from code block headers
+        code_languages = self._extract_code_languages(text)
+        
+        # Enhance text with code block keywords to improve semantic search
+        # This ensures code blocks are found even with generic queries
+        if has_code and code_languages:
+            code_context = f"\n[CODE BLOCK - Languages: {', '.join(code_languages)}]"
+            text = text + code_context
+        
         chunk_id = self.make_chunk_id(doc_id, section_path, kind, step_no, start_line)
         return Chunk(
             chunk_id=chunk_id,
@@ -146,6 +183,18 @@ class ChunkProcessor:
             has_code=has_code,
             commands=cmds,
         )
+    
+    @staticmethod
+    def _extract_code_languages(text: str) -> List[str]:
+        """Extract code block language hints (e.g., 'typescript', 'python')."""
+        languages = []
+        for line in text.splitlines():
+            if line.strip().startswith("```"):
+                # Extract language after backticks: ```typescript -> 'typescript'
+                lang = line.strip()[3:].strip().lower()
+                if lang and not lang.startswith("(") and lang not in ['', 'js', 'py']:
+                    languages.append(lang)
+        return languages
 
     def _split_steps_with_fences(self, lines: List[str], base_meta: dict, doc_id: str, file_path: str) -> List[Chunk]:
         """
@@ -333,6 +382,7 @@ class ChunkProcessor:
                 print(f"Section Path : {path}")
                 print(f"Header Level : {c.header_level}")
                 print(f"Lines       : {c.start_line}-{c.end_line}")
+                print(f"Has Code    : {c.has_code}")
                 print("------------------------------")
                 print(c.text)
 
