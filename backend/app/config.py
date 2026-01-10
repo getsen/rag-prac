@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     # Ollama-specific settings
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama2"  # Default model name
+    ollama_api_key: Optional[str] = None  # API key for Ollama
+    use_ollama_cloud: bool = False  # Flag to use Ollama Cloud service
     
     # HuggingFace-specific settings
     hf_model_name: str = "gpt2"  # HuggingFace model identifier

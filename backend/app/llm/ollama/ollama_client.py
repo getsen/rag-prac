@@ -12,6 +12,8 @@ class OllamaClient:
         self,
         base_url: str = "http://localhost:11434",
         timeout: int = 120,
+        use_cloud: bool = False,
+        api_key: Optional[str] = None,
     ):
         """
         Initialize OllamaClient.
@@ -19,11 +21,31 @@ class OllamaClient:
         Args:
             base_url: Base URL for Ollama API (default: http://localhost:11434)
             timeout: Request timeout in seconds (default: 120)
+            use_cloud: Use Ollama Cloud service instead of localhost (default: False)
+            api_key: API key for Ollama Cloud service
         """
-        self.base_url = base_url
+        self.use_cloud = use_cloud
+        
+        if use_cloud:
+            if not api_key:
+                raise ValueError("api_key is required when use_cloud=True")
+            # For Ollama Cloud, the base URL can be custom (provided by Ollama)
+            # or default to the cloud service endpoint
+            # Using the provided base_url if it looks like a cloud endpoint, otherwise use default
+            if "ollama" in base_url.lower() or base_url.startswith("http"):
+                self.base_url = base_url
+            else:
+                self.base_url = "http://localhost:11434"  # Default cloud endpoint
+            self.headers = {"Authorization": f"Bearer {api_key}"}
+            logger.info(f"OllamaClient initialized to use Ollama Cloud at {self.base_url}")
+        else:
+            self.base_url = base_url
+            self.headers = {}
+            logger.info(f"OllamaClient initialized with base_url={base_url}")
+        
         self.timeout = timeout
-        self.api_endpoint = f"{base_url}/api/generate"
-        logger.info(f"OllamaClient initialized with base_url={base_url}, timeout={timeout}")
+        self.api_endpoint = f"{self.base_url}/api/generate"
+        logger.info(f"OllamaClient ready - timeout={timeout}")
 
     def generate(
         self,
@@ -56,7 +78,12 @@ class OllamaClient:
             payload["system"] = system
 
         try:
-            r = requests.post(self.api_endpoint, json=payload, timeout=self.timeout)
+            r = requests.post(
+                self.api_endpoint,
+                json=payload,
+                timeout=self.timeout,
+                headers=self.headers,
+            )
             r.raise_for_status()
             data = r.json()
             response = data.get("response", "")
@@ -68,7 +95,18 @@ class OllamaClient:
 
 
 # Global client instance for backward compatibility
-_client = OllamaClient()
+def _get_client() -> OllamaClient:
+    """Get or create global client with settings from config."""
+    from app.config import settings
+    return OllamaClient(
+        base_url=settings.ollama_base_url,
+        timeout=120,
+        use_cloud=settings.use_ollama_cloud,
+        api_key=settings.ollama_api_key,
+    )
+
+
+_client = _get_client()
 
 
 def ollama_generate(

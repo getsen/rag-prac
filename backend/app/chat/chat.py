@@ -5,6 +5,8 @@ from fastapi.responses import StreamingResponse
 import logging
 import json
 import re
+import asyncio
+import random
 from app.config import settings
 from app.rag.rag_query import retrieve_chunks, build_context
 from app.llm.ollama.ollama_client_stream import ollama_generate_stream
@@ -49,6 +51,19 @@ class ChatService:
             re.IGNORECASE,
         )
         logger.info(f"ChatService initialized with ollama_model={self.ollama_model}, max_distance={self.max_distance}")
+
+    @staticmethod
+    def is_greeting(message: str) -> bool:
+        """Check if message is a greeting."""
+        greetings = [
+            r'\bhi\b', r'\bhello\b', r'\bhey\b', r'\bgreetings\b',
+            r'\bhowdy\b', r'\bgood\s+(morning|afternoon|evening)\b',
+            r'\bwhat\s+is\s+up\b', r'\bwhats\s+up\b', r'\bsup\b',
+            r'\bhow\s+are\s+you\b', r'\bhow\s+do\s+you\s+do\b',
+            r'\b(hello|hi)\s+there\b', r'\bhello\s+(there|world)\b'
+        ]
+        message_lower = message.strip().lower()
+        return any(re.search(pattern, message_lower) for pattern in greetings)
 
     @staticmethod
     def normalize_whitespace(text: str) -> str:
@@ -108,25 +123,93 @@ class ChatService:
             },
         )
 
-    def process_chat_stream(self, req: ChatRequest) -> StreamingResponse:
-        """Process a chat request and return streaming response."""
-        hits = retrieve_chunks(
-            query=req.message
-        )
-
-        if not hits:
-            logger.warning(f"No relevant chunks found for query: {req.message}")
-            return self.stream_not_found()
-
-        best_dist = hits[0].get("distance")
-        logger.debug(f"best_dist={best_dist}, query={req.message}")
-
-        if best_dist is not None and best_dist > self.max_distance:
-            logger.warning(f"Query rejected: distance {best_dist} exceeds max_distance {self.max_distance}")
-            return self.stream_not_found()
+    def _stream_greeting(self) -> StreamingResponse:
+        """Stream a friendly greeting response."""
+        greetings = [
+            "Hello! 👋 I'm your technical assistant. How can I help you today?",
+            "Hi there! 👋 What technical information can I help you find?",
+            "Hey! 👋 Ask me anything about the runbooks and documentation.",
+            "Greetings! 👋 I'm here to help with technical questions.",
+        ]
         
-        ctx = build_context(hits)
-        return self._stream_with_context(req.message, ctx)
+        greeting_response = random.choice(greetings)
+        
+        def gen():
+            # Stream greeting response word by word
+            words = greeting_response.split()
+            yield f"data: {json.dumps({'type':'meta','sources': []}, ensure_ascii=False)}\n\n"
+            
+            for word in words:
+                yield f"data: {json.dumps({'type':'delta','text': word + ' '}, ensure_ascii=False)}\n\n"
+            
+            yield f"data: {json.dumps({'type':'final','text': greeting_response}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'type':'done'}, ensure_ascii=False)}\n\n"
+        
+        return StreamingResponse(gen(), media_type="text/event-stream")
+
+    def process_chat_stream(self, req: ChatRequest) -> StreamingResponse:
+        """Process a chat request and return streaming response with adaptive RAG."""
+        
+        # Check if this is a greeting
+        if self.is_greeting(req.message):
+            return self._stream_greeting()
+        
+        # Lazy import to avoid circular dependencies
+        from app.rag.adaptive_rag import get_adaptive_rag
+        
+        # Use adaptive RAG for intelligent retrieval and generation
+        adaptive_rag = get_adaptive_rag()
+        
+        def sse_gen():
+            try:
+                # Run async adaptive RAG in sync context
+                result = adaptive_rag.query_sync(req.message)
+                
+                response_text = result.get('response', '')
+                sources = result.get('sources', [])
+                
+                if not response_text or 'Error' in response_text:
+                    logger.warning(f"Adaptive RAG failed to retrieve relevant content for: {req.message}")
+                    yield f"data: {json.dumps({'type':'meta','sources': []}, ensure_ascii=False)}\n\n"
+                    yield f"data: {json.dumps({'type':'final','text': 'NOT_FOUND: Not covered by the indexed documents.'}, ensure_ascii=False)}\n\n"
+                    yield f"data: {json.dumps({'type':'done'}, ensure_ascii=False)}\n\n"
+                    return
+                
+                # Send sources
+                yield f"data: {json.dumps({'type':'meta','sources': sources}, ensure_ascii=False)}\n\n"
+                
+                # Process response for formatting
+                parts = response_text.split()
+                full_text = []
+                
+                for part in parts:
+                    full_text.append(part)
+                    current_text = ' '.join(full_text)
+                    
+                    # Normalize and format
+                    normalized = self.normalize_whitespace(current_text)
+                    formatted = self.wrap_command_runs(normalized, lang="bash")
+                    
+                    # Stream delta
+                    yield f"data: {json.dumps({'type':'delta','text': part + ' '}, ensure_ascii=False)}\n\n"
+                    # Stream formatted version
+                    yield f"data: {json.dumps({'type':'final','text': formatted}, ensure_ascii=False)}\n\n"
+                
+                # Final response
+                final_text = self.normalize_whitespace(response_text)
+                final_text = self.wrap_command_runs(final_text, lang="bash")
+                yield f"data: {json.dumps({'type':'final','text': final_text}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type':'done'}, ensure_ascii=False)}\n\n"
+                
+                logger.info(f"Adaptive RAG completed successfully for query, attempts={result.get('attempts', 1)}")
+                
+            except Exception as e:
+                logger.error(f"Error in adaptive RAG streaming: {e}")
+                yield f"data: {json.dumps({'type':'meta','sources': []}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type':'final','text': f'Error: {str(e)}'}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type':'done'}, ensure_ascii=False)}\n\n"
+        
+        return StreamingResponse(sse_gen(), media_type="text/event-stream")
 
     def _stream_commands_only(self, hits: List[Dict[str, Any]]) -> StreamingResponse:
         """Stream only command lines without LLM processing."""
@@ -148,8 +231,13 @@ class ChatService:
     def _stream_with_context(self, query: str, ctx: Dict[str, Any]) -> StreamingResponse:
         """Stream LLM response with context."""
         system = (
-            "You are a factual technical assistant.\n"
-            "You must respond using ONLY the provided context content.\n\n"
+            "You are a friendly and helpful technical assistant.\n"
+            "You must respond using ONLY the provided context content for technical questions.\n\n"
+
+            "GREETING HANDLING:\n"
+            "- If the user greets you (Hi, Hello, Hey, etc.), respond warmly and ask how you can help.\n"
+            "- For greetings, ignore the context and provide a friendly response.\n"
+            "- Keep greetings brief and welcoming.\n\n"
 
             "CRITICAL RULES:\n"
             "- NEVER mention files, folders, paths, documents, links, or navigation steps.\n"
@@ -186,7 +274,7 @@ class ChatService:
         - If information is missing, respond with NOT_FOUND.
 
         Answer:
-    """
+        """
 
         def sse_gen():
             # send sources first
@@ -219,7 +307,6 @@ class ChatService:
 
 # Initialize service with defaults
 _chat_service = ChatService()
-
 
 @router.post("/chat/stream")
 def chat_stream(req: ChatRequest):
