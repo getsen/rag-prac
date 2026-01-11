@@ -252,9 +252,7 @@ export default function App() {
   const deleteConversation = async (id: string) => {
     try {
       await fetch(`${API_BASE}/conversations/${id}`, { method: "DELETE" });
-      setConversations((prev) =>
-        prev.filter((c) => c.conversation_id !== id)
-      );
+      setConversations((prev) => prev.filter((c) => c.conversation_id !== id));
       if (id === conversationId) {
         startNewChat();
       }
@@ -303,8 +301,7 @@ export default function App() {
                       onClick={() => switchConversation(conv.conversation_id)}
                     >
                       <div className="conv-preview">
-                        {conv.first_turn_preview ||
-                          "New conversation"}
+                        {conv.first_turn_preview || "New conversation"}
                       </div>
                       <div className="conv-meta">
                         {conv.turn_count} messages
