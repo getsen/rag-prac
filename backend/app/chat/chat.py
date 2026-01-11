@@ -10,6 +10,7 @@ import random
 from app.config import settings
 from app.rag.rag_query import retrieve_chunks, build_context
 from app.llm.ollama.ollama_client_stream import ollama_generate_stream
+from app.chat.conversation_context import get_or_create_conversation
 
 
 logger = logging.getLogger(__name__)
@@ -19,11 +20,13 @@ router = APIRouter(prefix="/api", tags=["chat"])
 class ChatRequest(BaseModel):
     message: str
     section_contains: Optional[str] = None
+    conversation_id: Optional[str] = None  # For maintaining context across turns
 
 class ChatResponse(BaseModel):
     answer: str
     sources: List[Dict[str, Any]]
     used_filters: Dict[str, Any]
+    conversation_id: Optional[str] = None  # Return conversation ID for client to track
 
 
 class ChatService:
@@ -123,8 +126,11 @@ class ChatService:
             },
         )
 
-    def _stream_greeting(self) -> StreamingResponse:
+    def _stream_greeting(self, conversation_id: Optional[str] = None) -> StreamingResponse:
         """Stream a friendly greeting response."""
+        # Get conversation context
+        conv_id, ctx_manager = get_or_create_conversation(conversation_id)
+        
         greetings = [
             "Hello! 👋 I'm your technical assistant. How can I help you today?",
             "Hi there! 👋 What technical information can I help you find?",
@@ -137,22 +143,36 @@ class ChatService:
         def gen():
             # Stream greeting response word by word
             words = greeting_response.split()
-            yield f"data: {json.dumps({'type':'meta','sources': []}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'type':'meta','sources': [], 'conversation_id': conv_id}, ensure_ascii=False)}\n\n"
             
             for word in words:
                 yield f"data: {json.dumps({'type':'delta','text': word + ' '}, ensure_ascii=False)}\n\n"
             
             yield f"data: {json.dumps({'type':'final','text': greeting_response}, ensure_ascii=False)}\n\n"
             yield f"data: {json.dumps({'type':'done'}, ensure_ascii=False)}\n\n"
+            
+            # Record greeting in conversation history
+            ctx_manager.add_turn("assistant", greeting_response)
         
         return StreamingResponse(gen(), media_type="text/event-stream")
 
     def process_chat_stream(self, req: ChatRequest) -> StreamingResponse:
         """Process a chat request and return streaming response with adaptive RAG."""
         
+        logger.info(f"Processing chat request with conversation_id: {req.conversation_id}")
+        
+        # Get or create conversation context
+        conv_id, ctx_manager = get_or_create_conversation(req.conversation_id)
+        
+        logger.info(f"Using conversation ID: {conv_id}, message: {req.message[:50]}")
+        
+        # Add user message to conversation history
+        ctx_manager.add_turn("user", req.message)
+        
         # Check if this is a greeting
         if self.is_greeting(req.message):
-            return self._stream_greeting()
+            greeting_response = self._stream_greeting(conversation_id=conv_id)
+            return greeting_response
         
         # Lazy import to avoid circular dependencies
         from app.rag.adaptive_rag import get_adaptive_rag
@@ -160,23 +180,30 @@ class ChatService:
         # Use adaptive RAG for intelligent retrieval and generation
         adaptive_rag = get_adaptive_rag()
         
+        # Get conversation context to enrich the query
+        conv_context = ctx_manager.get_context_for_rag()
+        
         def sse_gen():
+            response_text = ""
             try:
-                # Run async adaptive RAG in sync context
-                result = adaptive_rag.query_sync(req.message)
+                # Run async adaptive RAG in sync context with conversation context
+                result = adaptive_rag.query_sync(
+                    req.message, 
+                    conversation_context=conv_context.get('full_context', '')
+                )
                 
                 response_text = result.get('response', '')
                 sources = result.get('sources', [])
                 
                 if not response_text or 'Error' in response_text:
                     logger.warning(f"Adaptive RAG failed to retrieve relevant content for: {req.message}")
-                    yield f"data: {json.dumps({'type':'meta','sources': []}, ensure_ascii=False)}\n\n"
+                    yield f"data: {json.dumps({'type':'meta','sources': [], 'conversation_id': conv_id}, ensure_ascii=False)}\n\n"
                     yield f"data: {json.dumps({'type':'final','text': 'NOT_FOUND: Not covered by the indexed documents.'}, ensure_ascii=False)}\n\n"
                     yield f"data: {json.dumps({'type':'done'}, ensure_ascii=False)}\n\n"
                     return
                 
-                # Send sources
-                yield f"data: {json.dumps({'type':'meta','sources': sources}, ensure_ascii=False)}\n\n"
+                # Send sources with conversation ID
+                yield f"data: {json.dumps({'type':'meta','sources': sources, 'conversation_id': conv_id}, ensure_ascii=False)}\n\n"
                 
                 # Process response for formatting
                 parts = response_text.split()
@@ -198,6 +225,8 @@ class ChatService:
                 # Final response
                 final_text = self.normalize_whitespace(response_text)
                 final_text = self.wrap_command_runs(final_text, lang="bash")
+                response_text = final_text
+                
                 yield f"data: {json.dumps({'type':'final','text': final_text}, ensure_ascii=False)}\n\n"
                 yield f"data: {json.dumps({'type':'done'}, ensure_ascii=False)}\n\n"
                 
@@ -205,9 +234,16 @@ class ChatService:
                 
             except Exception as e:
                 logger.error(f"Error in adaptive RAG streaming: {e}")
-                yield f"data: {json.dumps({'type':'meta','sources': []}, ensure_ascii=False)}\n\n"
-                yield f"data: {json.dumps({'type':'final','text': f'Error: {str(e)}'}, ensure_ascii=False)}\n\n"
+                error_msg = f'Error: {str(e)}'
+                response_text = error_msg
+                yield f"data: {json.dumps({'type':'meta','sources': [], 'conversation_id': conv_id}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type':'final','text': error_msg}, ensure_ascii=False)}\n\n"
                 yield f"data: {json.dumps({'type':'done'}, ensure_ascii=False)}\n\n"
+            
+            finally:
+                # Add assistant response to conversation history
+                if response_text:
+                    ctx_manager.add_turn("assistant", response_text)
         
         return StreamingResponse(sse_gen(), media_type="text/event-stream")
 
@@ -312,6 +348,76 @@ _chat_service = ChatService()
 def chat_stream(req: ChatRequest):
     """API endpoint for streaming chat responses."""
     return _chat_service.process_chat_stream(req)
+
+
+@router.post("/conversations")
+def create_conversation():
+    """Create a new conversation and get its ID."""
+    from app.chat.conversation_context import get_conversation_store
+    conv_store = get_conversation_store()
+    conv_id, ctx_manager = conv_store.get_or_create_conversation()
+    
+    summary = ctx_manager.get_conversation_summary()
+    return {
+        "conversation_id": conv_id,
+        "summary": summary,
+    }
+
+
+@router.get("/conversations/{conversation_id}")
+def get_conversation(conversation_id: str):
+    """Get conversation history and metadata."""
+    from app.chat.conversation_context import get_conversation_store
+    conv_store = get_conversation_store()
+    ctx_manager = conv_store.get_conversation(conversation_id)
+    
+    if not ctx_manager:
+        return {"error": "Conversation not found"}, 404
+    
+    return {
+        "conversation_id": conversation_id,
+        "summary": ctx_manager.get_conversation_summary(),
+        "history": ctx_manager.export_history(),
+    }
+
+
+@router.get("/conversations/{conversation_id}/summary")
+def get_conversation_summary(conversation_id: str):
+    """Get conversation summary without full history."""
+    from app.chat.conversation_context import get_conversation_store
+    conv_store = get_conversation_store()
+    ctx_manager = conv_store.get_conversation(conversation_id)
+    
+    if not ctx_manager:
+        return {"error": "Conversation not found"}, 404
+    
+    return ctx_manager.get_conversation_summary()
+
+
+@router.delete("/conversations/{conversation_id}")
+def delete_conversation(conversation_id: str):
+    """Delete a conversation."""
+    from app.chat.conversation_context import get_conversation_store
+    conv_store = get_conversation_store()
+    deleted = conv_store.delete_conversation(conversation_id)
+    
+    if not deleted:
+        return {"error": "Conversation not found"}, 404
+    
+    return {"message": f"Conversation {conversation_id} deleted"}
+
+
+@router.get("/conversations")
+def list_conversations():
+    """List all active conversations."""
+    from app.chat.conversation_context import get_conversation_store
+    conv_store = get_conversation_store()
+    conversations = conv_store.list_conversations()
+    
+    return {
+        "total_conversations": len(conversations),
+        "conversations": conversations,
+    }
 
 
 @router.get("/health")

@@ -169,6 +169,12 @@ class ChunkProcessor:
             code_context = f"\n[CODE BLOCK - Languages: {', '.join(code_languages)}]"
             text = text + code_context
         
+        # Prepend section headers to improve semantic search
+        # This makes "Prerequisites" chunk findable even with vague queries
+        if section_path:
+            headers_text = " > ".join(section_path)
+            text = f"Section: {headers_text}\n\n{text}"
+        
         chunk_id = self.make_chunk_id(doc_id, section_path, kind, step_no, start_line)
         return Chunk(
             chunk_id=chunk_id,

@@ -94,8 +94,10 @@ class DocumentIngester:
         self.ensure_collections()
         
         md_files = sorted(glob.glob(os.path.join(docs_folder, "*.md")))
+        logger.info(f"Found {len(md_files)} markdown files")
+        
         if not md_files:
-            logger.info("No markdown files found in docs folder")
+            logger.warning(f"No markdown files found in {docs_folder}")
             return {
                 "docs_found": 0,
                 "docs_ingested": 0,

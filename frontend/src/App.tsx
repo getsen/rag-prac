@@ -17,13 +17,30 @@ type ChatMsg = {
   sources?: unknown[];
 };
 
+type ConversationSummary = {
+  conversation_id: string;
+  first_turn_preview?: string;
+  turn_count: number;
+  created_at: string;
+};
+
 const API_BASE = "http://localhost:8000/api";
 
 function uid() {
   return Math.random().toString(16).slice(2) + Date.now().toString(16);
 }
 
+function getConversationId(): string {
+  let id = localStorage.getItem("current_conversation_id");
+  if (!id) {
+    id = uid();
+    localStorage.setItem("current_conversation_id", id);
+  }
+  return id;
+}
+
 export default function App() {
+  const [conversationId, setConversationId] = useState(getConversationId());
   const [messages, setMessages] = useState<ChatMsg[]>([
     {
       id: uid(),
@@ -37,6 +54,8 @@ export default function App() {
     null
   );
   const [isStreaming, setIsStreaming] = useState(false);
+  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
+  const [showSidebar, setShowSidebar] = useState(true);
 
   const abortRef = useRef<AbortController | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
@@ -55,6 +74,48 @@ export default function App() {
     el.addEventListener("scroll", onScroll);
     return () => el.removeEventListener("scroll", onScroll);
   }, []);
+
+  // Load conversation history when conversation ID changes
+  useEffect(() => {
+    const loadConversation = async () => {
+      try {
+        const res = await fetch(
+          `${API_BASE}/conversations/${conversationId}`
+        ).catch(() => null);
+        if (res?.ok) {
+          const data = await res.json();
+          if (data.history && data.history.length > 0) {
+            setMessages(
+              data.history.map((turn: any, idx: number) => ({
+                id: uid(),
+                role: turn.role,
+                content: turn.content,
+              }))
+            );
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load conversation:", e);
+      }
+    };
+    loadConversation();
+  }, [conversationId]);
+
+  // Load conversation list once on mount, and refresh when conversation changes
+  useEffect(() => {
+    const loadConversations = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/conversations`);
+        if (res.ok) {
+          const data = await res.json();
+          setConversations(data.conversations || []);
+        }
+      } catch (e) {
+        console.error("Failed to load conversations:", e);
+      }
+    };
+    loadConversations();
+  }, [conversationId]); // Refresh when conversation changes
 
   useEffect(() => {
     if (!autoScroll) return;
@@ -81,6 +142,7 @@ export default function App() {
     const body = {
       message: text,
       section_contains: null,
+      conversation_id: conversationId,
     };
 
     const abort = new AbortController();
@@ -149,15 +211,121 @@ export default function App() {
     }
   };
 
+  const startNewChat = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/conversations`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const newId = data.conversation_id;
+        setConversationId(newId);
+        localStorage.setItem("current_conversation_id", newId);
+        setMessages([
+          {
+            id: uid(),
+            role: "assistant",
+            content:
+              "Hi! Ask me about onboarding/maintenance runbooks. I can stream responses and render tables/code cleanly.",
+          },
+        ]);
+        // Add new conversation to the list
+        setConversations((prev) => [
+          {
+            conversation_id: newId,
+            turn_count: 0,
+            created_at: new Date().toISOString(),
+          },
+          ...prev,
+        ]);
+      }
+    } catch (e) {
+      console.error("Failed to create conversation:", e);
+    }
+  };
+
+  const switchConversation = (id: string) => {
+    setConversationId(id);
+    localStorage.setItem("current_conversation_id", id);
+  };
+
+  const deleteConversation = async (id: string) => {
+    try {
+      await fetch(`${API_BASE}/conversations/${id}`, { method: "DELETE" });
+      setConversations((prev) =>
+        prev.filter((c) => c.conversation_id !== id)
+      );
+      if (id === conversationId) {
+        startNewChat();
+      }
+    } catch (e) {
+      console.error("Failed to delete conversation:", e);
+    }
+  };
+
   return (
     <div className="app">
       <div className="header">
         <div className="header-inner">
+          <button
+            className="sidebar-toggle"
+            onClick={() => setShowSidebar(!showSidebar)}
+          >
+            ☰
+          </button>
           <div className="brand">RAG Runbook Chat</div>
         </div>
       </div>
 
       <div className="container">
+        {showSidebar && (
+          <div className="sidebar">
+            <div className="sidebar-header">
+              <button className="new-chat-btn" onClick={startNewChat}>
+                + New Chat
+              </button>
+            </div>
+
+            <div className="conversations-list">
+              <div className="sidebar-section-title">Conversations</div>
+              {conversations.length === 0 ? (
+                <div className="empty-conversations">No conversations yet</div>
+              ) : (
+                conversations.map((conv) => (
+                  <div
+                    key={conv.conversation_id}
+                    className={`conversation-item ${
+                      conv.conversation_id === conversationId ? "active" : ""
+                    }`}
+                  >
+                    <div
+                      className="conv-content"
+                      onClick={() => switchConversation(conv.conversation_id)}
+                    >
+                      <div className="conv-preview">
+                        {conv.first_turn_preview ||
+                          "New conversation"}
+                      </div>
+                      <div className="conv-meta">
+                        {conv.turn_count} messages
+                      </div>
+                    </div>
+                    <button
+                      className="delete-conv-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteConversation(conv.conversation_id);
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="chat">
           <div className="messages" ref={scrollerRef}>
             {messages.map((m) => (

@@ -11,7 +11,7 @@ from langchain_ollama import ChatOllama
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import StateGraph, START, END
 from langchain_core.output_parsers import JsonOutputParser
-from sentence_transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer, CrossEncoder
 
 from app.config import settings
 from app.rag.rag_query import RAGQueryEngine
@@ -32,6 +32,7 @@ class AdaptiveRAGState(TypedDict):
     max_attempts: int
     final_response: str
     sources: List[Dict[str, Any]]
+    conversation_context: str  # Full enriched context for response generation
 
 
 class AdaptiveRAG:
@@ -51,6 +52,14 @@ class AdaptiveRAG:
         self.ollama_model = ollama_model
         self.temperature = temperature
         self.max_attempts = max_retrieval_attempts
+        
+        # Initialize re-ranker for better document ranking
+        try:
+            self.reranker = CrossEncoder('cross-encoder/mmarco-MiniLMv2-L12-H384')
+            logger.info("Re-ranker initialized: cross-encoder/mmarco-MiniLMv2-L12-H384")
+        except Exception as e:
+            logger.warning(f"Could not load re-ranker: {e}. Proceeding without re-ranking.")
+            self.reranker = None
         
         # Initialize LLM based on cloud mode
         if settings.use_ollama_cloud:
@@ -183,12 +192,55 @@ class AdaptiveRAG:
             logger.error(f"Error analyzing query: {e}")
             return {"query_analysis": {"intent": "search", "topics": []}, "attempts": 0}
 
+    def _rerank_documents(self, query: str, documents: List[Dict[str, Any]], top_k: int = 8) -> List[Dict[str, Any]]:
+        """
+        Re-rank documents using cross-encoder for better relevance.
+        
+        Args:
+            query: The original query
+            documents: List of retrieved documents with 'text' and 'metadata'
+            top_k: Number of top documents to return
+            
+        Returns:
+            Re-ranked documents
+        """
+        if not self.reranker or not documents:
+            logger.debug(f"Skipping re-ranking (reranker={self.reranker}, docs={len(documents)})")
+            return documents[:top_k]
+        
+        try:
+            # Prepare pairs for cross-encoder
+            pairs = [[query, doc['text']] for doc in documents]
+            
+            # Get re-ranking scores
+            scores = self.reranker.predict(pairs)
+            
+            # Sort by score (descending)
+            ranked_docs = sorted(
+                zip(documents, scores),
+                key=lambda x: x[1],
+                reverse=True
+            )
+            
+            # Return top-k documents with new ranking scores
+            result = []
+            for doc, score in ranked_docs[:top_k]:
+                result.append({**doc, "rerank_score": float(score)})
+            
+            logger.info(f"Re-ranked {len(documents)} documents -> top {top_k} (scores: {[f'{s:.2f}' for _, s in ranked_docs[:3]]})")
+            return result
+            
+        except Exception as e:
+            logger.warning(f"Error during re-ranking: {e}. Returning original order.")
+            return documents[:top_k]
+
     def _retrieve_documents(self, state: AdaptiveRAGState) -> Dict[str, Any]:
         """Retrieve relevant documents using adaptive strategies."""
         logger.debug(f"Retrieving documents for query: {state['query']}")
         
         query = state['query']
         analysis = state.get('query_analysis', {})
+        full_context = state.get('conversation_context', '')  # Get the full enriched context
         
         # Adaptive retrieval: adjust k based on intent
         intent = analysis.get('intent', 'search')
@@ -199,33 +251,79 @@ class AdaptiveRAG:
             
             col = self.rag_engine.client.get_collection(name=self.rag_engine.chunks_collection)
             model = SentenceTransformer(self.rag_engine.embed_model)
-            qemb = model.encode([query], normalize_embeddings=True).tolist()
             
-            res = col.query(
-                query_embeddings=qemb,
-                n_results=k,
-                where=None,
-                include=["documents", "metadatas", "distances"],
-            )
+            # If query has context, do multiple searches for better coverage
+            queries_to_search = [query]
             
-            docs_list = res["documents"][0] if res.get("documents") else []
-            metas_list = res["metadatas"][0] if res.get("metadatas") else []
-            dists = res["distances"][0] if res.get("distances") else []
+            # If we have conversation context, extract key terms and create search variations
+            if full_context and '[CONVERSATION CONTEXT]' in full_context:
+                # Extract conversation context to find key topics
+                parts = full_context.split('[CURRENT QUERY]')
+                if len(parts) == 2:
+                    context_part = parts[0]
+                    
+                    # Try to extract key terms from context (look for previous topics)
+                    # For example, if context mentions "linux", add that to searches
+                    context_lower = context_part.lower()
+                    
+                    # Extract key topics from conversation
+                    if 'linux' in context_lower:
+                        queries_to_search.append(f"{query} linux")
+                    if 'install' in context_lower or 'setup' in context_lower or 'ubuntu' in context_lower or 'debian' in context_lower:
+                        queries_to_search.append(f"{query} installation setup")
+                    if 'docker' in context_lower:
+                        queries_to_search.append(f"{query} docker")
+                    if 'onboarding' in context_lower:
+                        queries_to_search.append(f"{query} onboarding")
             
-            # Convert to hit format with decoded metadata
-            hits = []
-            for doc_text, md, dist in zip(docs_list, metas_list, dists):
-                # Decode metadata (same as RAGQueryEngine)
-                commands = json.loads(md.get("commands_json", "[]"))
-                section_path = json.loads(md.get("section_path_json", "[]"))
+            # Perform searches and aggregate results
+            all_hits = {}
+            for search_query in queries_to_search:
+                logger.info(f"Searching with query: {search_query}")
+                qemb = model.encode([search_query], normalize_embeddings=True).tolist()
                 
-                hits.append({
-                    "text": doc_text,
-                    "metadata": {**md, "commands": commands, "section_path": section_path},
-                    "distance": dist,
-                })
+                res = col.query(
+                    query_embeddings=qemb,
+                    n_results=k,
+                    where=None,
+                    include=["documents", "metadatas", "distances"],
+                )
+                
+                docs_list = res["documents"][0] if res.get("documents") else []
+                metas_list = res["metadatas"][0] if res.get("metadatas") else []
+                dists = res["distances"][0] if res.get("distances") else []
+                
+                logger.info(f"  Found {len(docs_list)} results for '{search_query}'")
+                
+                # Convert to hit format with decoded metadata
+                for doc_text, md, dist in zip(docs_list, metas_list, dists):
+                    # Decode metadata (same as RAGQueryEngine)
+                    commands = json.loads(md.get("commands_json", "[]"))
+                    section_path = json.loads(md.get("section_path_json", "[]"))
+                    
+                    hit_id = md.get("source", "") + "_" + str(section_path)
+                    if hit_id not in all_hits:
+                        all_hits[hit_id] = {
+                            "text": doc_text,
+                            "metadata": {**md, "commands": commands, "section_path": section_path},
+                            "distance": dist,
+                        }
+                    else:
+                        # Keep the best (lowest) distance
+                        if dist < all_hits[hit_id]["distance"]:
+                            all_hits[hit_id]["distance"] = dist
+            
+            # Sort by distance and return top k
+            hits = sorted(all_hits.values(), key=lambda x: x['distance'])[:k]
             
             logger.info(f"Retrieved {len(hits)} documents (distances: {[h['distance'] for h in hits[:3]]})")
+            
+            # Apply re-ranking to improve relevance
+            if self.reranker and len(hits) > 0:
+                original_query = state['query'].split('\n\nContext:')[0] if '\n\nContext:' in state['query'] else state['query']
+                hits = self._rerank_documents(original_query, hits, top_k=k)
+                logger.info(f"After re-ranking: {len(hits)} documents")
+            
             return {"retrieved_docs": hits}
             
         except Exception as e:
@@ -239,26 +337,37 @@ class AdaptiveRAG:
         logger.debug("Generating response")
         
         docs = state.get('retrieved_docs', [])
-        query = state['query']
+        full_query = state.get('conversation_context', state['query'])  # Use enriched context if available
+        original_query = state['query'].split('\n\nContext:')[0] if '\n\nContext:' in state['query'] else state['query']
         
         if not docs:
             llm_response = "I could not find relevant information to answer your question. Please rephrase your query."
-            logger.warning(f"No documents retrieved for query: {query}")
+            logger.warning(f"No documents retrieved for query: {original_query}")
             return {"llm_response": llm_response}
         
         # Build context using the RAGQueryEngine's context builder
         context = self.rag_engine.build_context(docs)
         
-        system_prompt = """You are a helpful technical assistant. Answer questions based ONLY on the provided context.
-        If the context doesn't contain information to answer the question, say so explicitly.
-        Be concise but comprehensive."""
+        system_prompt = """You are a helpful technical assistant answering questions about runbooks and operational procedures.
+
+        IMPORTANT INSTRUCTIONS:
+        1. Answer ONLY using the provided documentation context below
+        2. When you see conversation history, use it to understand pronouns and vague references
+        3. DO NOT say "the provided documentation does not contain" if relevant docs are provided
+        4. Be direct and helpful - cite sources when relevant
+
+        When answering follow-up questions:
+        - "this" or "that" refers to the topic from the previous question
+        - Use conversation context to disambiguate vague questions
+        - Answer what is being asked in the context of the conversation"""
                 
-        user_prompt = f"""Context:
+        user_prompt = f"""DOCUMENTATION:
         {context['context_text']}
 
-        Question: {query}
+        USER QUESTION (with conversation context):
+        {full_query}
 
-        Provide a clear, direct answer using only the context provided."""
+        Answer the question directly using the documentation provided. If this is a follow-up question, use the conversation context to understand what topic is being referenced."""
         
         try:
             llm_response = self._call_llm(
@@ -267,6 +376,7 @@ class AdaptiveRAG:
                 temperature=self.temperature,
             )
             logger.debug(f"Generated response length: {len(llm_response)}")
+            logger.info(f"LLM response: {llm_response[:100]}...")
             
             return {
                 "llm_response": llm_response,
@@ -387,12 +497,33 @@ class AdaptiveRAG:
                 "error": str(e),
             }
 
-    def query_sync(self, query: str) -> Dict[str, Any]:
-        """Synchronous version of query for non-async contexts."""
+    def query_sync(self, query: str, conversation_context: str = "") -> Dict[str, Any]:
+        """
+        Synchronous version of query for non-async contexts.
+        
+        Args:
+            query: The user query
+            conversation_context: Optional conversation history for context
+            
+        Returns:
+            Dictionary with response, sources, and metadata
+        """
         logger.info(f"Starting adaptive RAG query (sync): {query}")
         
+        # Store conversation context separately for use in response generation
+        # For retrieval, we'll use the original query to get better semantic matches
+        retrieval_query = query
+        enriched_query = query
+        
+        if conversation_context:
+            enriched_query = f"[CONVERSATION CONTEXT]\n{conversation_context}\n\n[CURRENT QUERY]\n{query}"
+            logger.info(f"Using conversation context ({len(conversation_context)} chars) for response generation")
+            # For retrieval, combine context with current query to improve semantic search
+            # But use mostly the current query to avoid diluting the semantic signal
+            retrieval_query = f"{query}\n\nContext: {conversation_context}"
+        
         initial_state: AdaptiveRAGState = {
-            "query": query,
+            "query": retrieval_query,
             "messages": [],
             "retrieved_docs": [],
             "query_analysis": {},
@@ -402,6 +533,7 @@ class AdaptiveRAG:
             "max_attempts": self.max_attempts,
             "final_response": "",
             "sources": [],
+            "conversation_context": enriched_query,  # Store full enriched context for response generation
         }
         
         try:

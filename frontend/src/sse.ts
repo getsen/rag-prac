@@ -1,5 +1,5 @@
 export type SSEMessage =
-  | { type: "meta"; sources?: unknown[] }
+  | { type: "meta"; sources?: unknown[]; conversation_id?: string }
   | { type: "delta"; text: string }
   | { type: "done" }
   | { type: "final"; text: string };
