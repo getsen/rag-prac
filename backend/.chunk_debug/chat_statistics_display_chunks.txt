@@ -1,0 +1,436 @@
+CHUNK ANALYSIS FOR: chat_statistics_display.md
+====================================================================================================
+Total Chunks: 15
+
+
+====================================================================================================
+CHUNK #1
+====================================================================================================
+Chunk ID: b5140e8aa1572b82b04453f64d9d4b7970dd0d44
+Kind: section
+Lines: 1-2
+Has Code: False
+Header Level: 1
+Section Path: Chat Statistics Display Implementation
+
+----------------------------------------------------------------------------------------------------
+CONTENT:
+----------------------------------------------------------------------------------------------------
+
+Section: Chat Statistics Display Implementation
+
+# Chat Statistics Display Implementation
+
+
+====================================================================================================
+CHUNK #2
+====================================================================================================
+Chunk ID: aba763283bf09fdfd5bc62c91fea45eb5e262569
+Kind: section
+Lines: 3-6
+Has Code: False
+Header Level: 2
+Section Path: Chat Statistics Display Implementation > Overview
+
+----------------------------------------------------------------------------------------------------
+CONTENT:
+----------------------------------------------------------------------------------------------------
+
+Section: Chat Statistics Display Implementation > Overview
+
+## Overview
+
+Successfully implemented detailed statistics display in the chat window, showing context used, token counts, source documents, and processing time for each AI response.
+
+
+====================================================================================================
+CHUNK #3
+====================================================================================================
+Chunk ID: 0761890eec045c19b1bf43c36894e9f768919942_merged
+Kind: merged_section
+Lines: 7-10
+Has Code: True
+Header Level: 2
+Section Path: Chat Statistics Display Implementation > Changes Made
+
+----------------------------------------------------------------------------------------------------
+CONTENT:
+----------------------------------------------------------------------------------------------------
+
+Section: Chat Statistics Display Implementation > Changes Made
+
+## Changes Made
+
+Section: Chat Statistics Display Implementation > Changes Made > Backend Changes
+
+### Backend Changes
+
+
+====================================================================================================
+CHUNK #4
+====================================================================================================
+Chunk ID: f14433769c4e788f24068e367b1bf4080ccc2998
+Kind: section
+Lines: 11-17
+Has Code: False
+Header Level: 4
+Section Path: Chat Statistics Display Implementation > Changes Made > Backend Changes > [schemas.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/models/schemas.py)
+
+----------------------------------------------------------------------------------------------------
+CONTENT:
+----------------------------------------------------------------------------------------------------
+
+Section: Chat Statistics Display Implementation > Changes Made > Backend Changes > [schemas.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/models/schemas.py)
+
+#### [schemas.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/models/schemas.py)
+
+Added new statistics models:
+
+- **`SourceDocument`**: Metadata for source documents including filename, chunk info, and relevance score
+- **`ResponseStatistics`**: Complete statistics model with tokens, context info, source documents, reasoning steps, and processing time
+
+
+====================================================================================================
+CHUNK #5
+====================================================================================================
+Chunk ID: a9c151d5a0e492f4da0e34478b8f215c8af14fe6
+Kind: section
+Lines: 18-35
+Has Code: False
+Header Level: 4
+Section Path: Chat Statistics Display Implementation > Changes Made > Backend Changes > [graph_service.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/services/graph_service.py)
+
+----------------------------------------------------------------------------------------------------
+CONTENT:
+----------------------------------------------------------------------------------------------------
+
+Section: Chat Statistics Display Implementation > Changes Made > Backend Changes > [graph_service.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/services/graph_service.py)
+
+#### [graph_service.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/services/graph_service.py)
+
+Updated `chat_stream()` method to track and return statistics:
+
+- Track start time for processing duration calculation
+- Collect source documents from RAG results with full metadata
+- Count reasoning steps from multi-hop reasoning chain
+- Estimate token counts (words × 1.3 approximation)
+- Yield statistics as a dictionary event after response completion
+
+Key statistics tracked:
+- **Input tokens**: Estimated from prompt length
+- **Output tokens**: Estimated from response length
+- **Total tokens**: Sum of input and output
+- **Source documents**: Full metadata including filename, chunk position, relevance score
+- **Processing time**: Milliseconds from start to completion
+- **Reasoning steps**: Count of multi-hop reasoning steps
+
+
+====================================================================================================
+CHUNK #6
+====================================================================================================
+Chunk ID: 6cef285ef3dca5431ffdedc6ccd5dca9890e2d48
+Kind: section
+Lines: 36-46
+Has Code: False
+Header Level: 4
+Section Path: Chat Statistics Display Implementation > Changes Made > Backend Changes > [chat.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/routers/chat.py)
+
+----------------------------------------------------------------------------------------------------
+CONTENT:
+----------------------------------------------------------------------------------------------------
+
+Section: Chat Statistics Display Implementation > Changes Made > Backend Changes > [chat.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/routers/chat.py)
+
+#### [chat.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/routers/chat.py)
+
+Updated `stream_generator()` to handle statistics events:
+
+- Modified to handle dictionary items from `graph_service.chat_stream()`
+- Emit `token` events for streaming text
+- Emit `statistics` events with complete statistics data
+- Both events use SSE format for real-time updates
+
+---
+
+
+====================================================================================================
+CHUNK #7
+====================================================================================================
+Chunk ID: 36ccfe4f153ba055d35f00f6df2a72bfcc490e62
+Kind: section
+Lines: 47-48
+Has Code: False
+Header Level: 3
+Section Path: Chat Statistics Display Implementation > Changes Made > Frontend Changes
+
+----------------------------------------------------------------------------------------------------
+CONTENT:
+----------------------------------------------------------------------------------------------------
+
+Section: Chat Statistics Display Implementation > Changes Made > Frontend Changes
+
+### Frontend Changes
+
+
+====================================================================================================
+CHUNK #8
+====================================================================================================
+Chunk ID: 6f584ff6720ebe5d120be0623e5106f3a9add687
+Kind: section
+Lines: 49-58
+Has Code: False
+Header Level: 4
+Section Path: Chat Statistics Display Implementation > Changes Made > Frontend Changes > [useChat.ts](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/frontend/src/hooks/useChat.ts)
+
+----------------------------------------------------------------------------------------------------
+CONTENT:
+----------------------------------------------------------------------------------------------------
+
+Section: Chat Statistics Display Implementation > Changes Made > Frontend Changes > [useChat.ts](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/frontend/src/hooks/useChat.ts)
+
+#### [useChat.ts](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/frontend/src/hooks/useChat.ts)
+
+Added statistics interfaces and handling:
+
+- **`SourceDocument` interface**: Matches backend model
+- **`MessageStatistics` interface**: Complete statistics structure
+- Updated `Message` interface to include optional `statistics` field
+- Added statistics event handler in SSE stream parser
+- Statistics are attached to assistant messages when received
+
+
+====================================================================================================
+CHUNK #9
+====================================================================================================
+Chunk ID: 285e52e7442bc5dad00fcd8f3cd1f85a632d7440
+Kind: section
+Lines: 59-78
+Has Code: False
+Header Level: 4
+Section Path: Chat Statistics Display Implementation > Changes Made > Frontend Changes > [MessageStatistics.tsx](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/frontend/src/components/MessageStatistics.tsx)
+
+----------------------------------------------------------------------------------------------------
+CONTENT:
+----------------------------------------------------------------------------------------------------
+
+Section: Chat Statistics Display Implementation > Changes Made > Frontend Changes > [MessageStatistics.tsx](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/frontend/src/components/MessageStatistics.tsx)
+
+#### [MessageStatistics.tsx](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/frontend/src/components/MessageStatistics.tsx)
+
+Created new collapsible statistics component:
+
+**Features:**
+- Collapsible section (starts collapsed by default)
+- Toggle button showing token count and processing time at a glance
+- Expandable view with detailed sections:
+  - **Tokens**: Input, output, and total with visual grid layout
+  - **Context**: Number of documents used and reasoning steps
+  - **Source Documents**: List with filename, chunk info, and relevance score
+  - **Processing Time**: Response generation duration
+
+**Styling:**
+- Clean, minimal design matching existing UI
+- Color-coded elements (blue highlights for important values)
+- Responsive grid layout for token stats
+- Document cards with left border accent
+- Smooth transitions and hover effects
+
+
+====================================================================================================
+CHUNK #10
+====================================================================================================
+Chunk ID: 252bde5652ac8067c7b123b66e1cf97d91149d94
+Kind: section
+Lines: 79-88
+Has Code: False
+Header Level: 4
+Section Path: Chat Statistics Display Implementation > Changes Made > Frontend Changes > [MessageBubble.tsx](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/frontend/src/components/MessageBubble.tsx)
+
+----------------------------------------------------------------------------------------------------
+CONTENT:
+----------------------------------------------------------------------------------------------------
+
+Section: Chat Statistics Display Implementation > Changes Made > Frontend Changes > [MessageBubble.tsx](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/frontend/src/components/MessageBubble.tsx)
+
+#### [MessageBubble.tsx](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/frontend/src/components/MessageBubble.tsx)
+
+Integrated statistics component:
+
+- Import `MessageStatisticsComponent`
+- Render statistics below assistant messages
+- Only shown for assistant messages with statistics data
+
+---
+
+
+====================================================================================================
+CHUNK #11
+====================================================================================================
+Chunk ID: 36cb78cfa9b510db65bdfd0f4985abee662b076c_merged
+Kind: merged_section
+Lines: 89-119
+Has Code: True
+Header Level: 2
+Section Path: Chat Statistics Display Implementation > Features
+
+----------------------------------------------------------------------------------------------------
+CONTENT:
+----------------------------------------------------------------------------------------------------
+
+Section: Chat Statistics Display Implementation > Features
+
+## Features
+
+Section: Chat Statistics Display Implementation > Features > Token Counting
+
+### Token Counting
+
+Uses word-based approximation (words × 1.3) for token estimation:
+- Fast and efficient
+- Good enough for local models
+- Can be replaced with `tiktoken` for OpenAI models if needed
+
+Section: Chat Statistics Display Implementation > Features > Source Document Display
+
+### Source Document Display
+
+Shows comprehensive metadata for each source:
+- Document filename
+- Chunk position (e.g., "Chunk 2 of 5")
+- Relevance score (inverted distance, higher is better)
+- Visual card layout with color coding
+
+Section: Chat Statistics Display Implementation > Features > Collapsible Design
+
+### Collapsible Design
+
+Statistics start collapsed to avoid UI clutter:
+- Toggle button shows key metrics at a glance
+- Click to expand for full details
+- Smooth animation
+
+Section: Chat Statistics Display Implementation > Features > Processing Time
+
+### Processing Time
+
+Tracks end-to-end response generation:
+- Measured in milliseconds
+- Displayed in seconds with 2 decimal places
+- Helps users understand performance
+
+
+====================================================================================================
+CHUNK #12
+====================================================================================================
+Chunk ID: d67a5e606b03b93cc8e3205817cd789fef5d7f7c
+Kind: narrative
+Lines: 120-128
+Has Code: False
+Header Level: 2
+Section Path: Chat Statistics Display Implementation > Usage
+
+----------------------------------------------------------------------------------------------------
+CONTENT:
+----------------------------------------------------------------------------------------------------
+
+Section: Chat Statistics Display Implementation > Usage
+
+## Usage
+
+The statistics are automatically displayed for all assistant responses. Users can:
+
+
+====================================================================================================
+CHUNK #13
+====================================================================================================
+Chunk ID: 53e450ac6b27521239486fc3ed1a2cb21367e91c
+Kind: steps
+Lines: 120-128
+Has Code: False
+Header Level: 2
+Section Path: Chat Statistics Display Implementation > Usage
+
+----------------------------------------------------------------------------------------------------
+CONTENT:
+----------------------------------------------------------------------------------------------------
+
+Section: Chat Statistics Display Implementation > Usage
+
+## Usage
+1. **See summary**: Token count and processing time in collapsed view
+2. **Expand details**: Click toggle to see full statistics
+3. **View sources**: See which documents were used for RAG responses
+4. **Track reasoning**: See how many reasoning steps were used
+
+
+====================================================================================================
+CHUNK #14
+====================================================================================================
+Chunk ID: 05f572b805bb53dc5c04e02392b937c01a37e3bb
+Kind: section
+Lines: 129-158
+Has Code: True
+Header Level: 2
+Section Path: Chat Statistics Display Implementation > Example Output
+Commands: ▶ 245 tokens • 1.23s, [Expanded view shows:], TOKENS, Input: 180, Output: 65, Total: 245, CONTEXT, Documents Used: 3, Reasoning Steps: 0, SOURCE DOCUMENTS, 📄 x-wp.pdf, Chunk 2 of 12, [Relevance: 0.85], 📄 h04556p1-virtualization-and-clustering-of-neeps-wp.pdf, Chunk 5 of 8, [Relevance: 0.78], PROCESSING TIME, 1.23s
+
+----------------------------------------------------------------------------------------------------
+CONTENT:
+----------------------------------------------------------------------------------------------------
+
+Section: Chat Statistics Display Implementation > Example Output
+
+## Example Output
+
+When RAG is enabled, users will see:
+
+```
+▶ 245 tokens • 1.23s
+
+[Expanded view shows:]
+TOKENS
+Input: 180
+Output: 65
+Total: 245
+
+CONTEXT
+Documents Used: 3
+Reasoning Steps: 0
+
+SOURCE DOCUMENTS
+📄 x-wp.pdf
+Chunk 2 of 12
+[Relevance: 0.85]
+
+📄 h04556p1-virtualization-and-clustering-of-neeps-wp.pdf
+Chunk 5 of 8
+[Relevance: 0.78]
+
+PROCESSING TIME
+1.23s
+```
+
+
+====================================================================================================
+CHUNK #15
+====================================================================================================
+Chunk ID: 76e3a2806b069531e2912a7be05ed3d7275d8394
+Kind: steps
+Lines: 159-165
+Has Code: False
+Header Level: 2
+Section Path: Chat Statistics Display Implementation > Benefits
+
+----------------------------------------------------------------------------------------------------
+CONTENT:
+----------------------------------------------------------------------------------------------------
+
+Section: Chat Statistics Display Implementation > Benefits
+
+## Benefits
+1. **Transparency**: Users see exactly what context was used
+2. **Performance insights**: Token counts and processing time visible
+3. **Source tracking**: Easy to identify which documents contributed
+4. **Debugging**: Helps identify when RAG is/isn't working
+5. **Cost awareness**: Token counts help estimate API costs (for OpenAI models)
+

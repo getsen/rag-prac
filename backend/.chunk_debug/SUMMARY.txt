@@ -1,0 +1,42 @@
+CHUNK DEBUG SUMMARY
+================================================================================
+
+Total Documents: 6
+Total Chunks: 93
+
+
+chat_statistics_display.md:
+  Total Chunks: 15
+  By Kind: {'section': 10, 'merged_section': 2, 'narrative': 1, 'steps': 2}
+  With Code: 3/15
+  Avg Chunk Size: 504 chars
+
+complete_system_architecture.md:
+  Total Chunks: 30
+  By Kind: {'section': 13, 'steps': 7, 'merged_section': 6, 'narrative': 4}
+  With Code: 13/30
+  Avg Chunk Size: 1046 chars
+
+onboarding.md:
+  Total Chunks: 3
+  By Kind: {'section': 2, 'steps': 1}
+  With Code: 1/3
+  Avg Chunk Size: 115 chars
+
+openai_embedding_support.md:
+  Total Chunks: 16
+  By Kind: {'section': 13, 'merged_section': 3}
+  With Code: 4/16
+  Avg Chunk Size: 508 chars
+
+session_management_apis.md:
+  Total Chunks: 15
+  By Kind: {'section': 9, 'merged_section': 4, 'narrative': 1, 'steps': 1}
+  With Code: 5/15
+  Avg Chunk Size: 570 chars
+
+streaming_performance_optimization.md:
+  Total Chunks: 14
+  By Kind: {'section': 4, 'narrative': 2, 'steps': 3, 'merged_section': 5}
+  With Code: 6/14
+  Avg Chunk Size: 840 chars

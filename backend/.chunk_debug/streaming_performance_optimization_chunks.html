@@ -1,0 +1,278 @@
+<!DOCTYPE html><html><head>
+<title>Chunks: streaming_performance_optimization.md</title>
+<meta charset='utf-8'><meta name='viewport' content='width=device-width'>
+<style>
+body{font-family:Arial,sans-serif;background:#f5f5f5;padding:20px;}
+.container{max-width:1400px;margin:0 auto;}
+.header{background:#2c3e50;color:white;padding:20px;border-radius:5px;margin-bottom:20px;}
+.chunk{background:white;margin-bottom:20px;padding:20px;border-left:4px solid #3498db;border-radius:5px;}
+.chunk-title{font-weight:bold;font-size:16px;margin-bottom:10px;}
+.chunk-meta{font-size:12px;color:#7f8c8d;margin-bottom:10px;}
+.tag{display:inline-block;padding:4px 8px;background:#ecf0f1;border-radius:3px;margin-right:5px;font-size:11px;}
+.section-path{color:#27ae60;font-size:12px;margin:8px 0;}
+.content{background:#f8f9fa;padding:15px;border-radius:3px;font-family:monospace;font-size:12px;max-height:400px;overflow-y:auto;white-space:pre-wrap;}
+</style></head><body>
+<div class='container'>
+<div class='header'><h1>📄 streaming_performance_optimization.md</h1><p>Total Chunks: 14</p></div>
+<div class='chunk'>
+<div class='chunk-title'>Chunk #1</div>
+<div class='chunk-meta'>Lines 1-2</div>
+<span class='tag'>section
+</span>
+<div class='section-path'>Streaming Performance Optimizations</div>
+<div class='content'>Section: Streaming Performance Optimizations
+
+# Streaming Performance Optimizations</div>
+</div>
+<div class='chunk'>
+<div class='chunk-title'>Chunk #2</div>
+<div class='chunk-meta'>Lines 3-6</div>
+<span class='tag'>section
+</span>
+<div class='section-path'>Streaming Performance Optimizations > Problem</div>
+<div class='content'>Section: Streaming Performance Optimizations &gt; Problem
+
+## Problem
+
+UI stutters and becomes unresponsive during long streaming responses, especially on Windows laptops with lower-end hardware.</div>
+</div>
+<div class='chunk'>
+<div class='chunk-title'>Chunk #3</div>
+<div class='chunk-meta'>Lines 7-14</div>
+<span class='tag'>section
+</span>
+<div class='section-path'>Streaming Performance Optimizations > Root Cause</div>
+<div class='content'>Section: Streaming Performance Optimizations &gt; Root Cause
+
+## Root Cause
+
+The original implementation used `flushSync()` to update the DOM for **every single token** received from the backend. For a typical response:
+- ~500 tokens = ~500 DOM updates per second
+- Each update triggers browser reflow and repaint
+- Windows laptops struggle with this update frequency
+- Result: Janky, stuttering UI</div>
+</div>
+<div class='chunk'>
+<div class='chunk-title'>Chunk #4</div>
+<div class='chunk-meta'>Lines 15-24</div>
+<span class='tag'>narrative
+</span>
+<div class='section-path'>Streaming Performance Optimizations > Solution Overview</div>
+<div class='content'>Section: Streaming Performance Optimizations &gt; Solution Overview
+
+## Solution Overview
+
+Implemented three layers of optimization:</div>
+</div>
+<div class='chunk'>
+<div class='chunk-title'>Chunk #5</div>
+<div class='chunk-meta'>Lines 15-24</div>
+<span class='tag'>steps
+</span>
+<div class='section-path'>Streaming Performance Optimizations > Solution Overview</div>
+<div class='content'>Section: Streaming Performance Optimizations &gt; Solution Overview
+
+## Solution Overview
+1. **Token Batching** - Batch tokens and update at 60fps max
+2. **Smart Scrolling** - Only scroll when user is at bottom
+3. **CSS Performance Hints** - Help browser optimize rendering
+
+---</div>
+</div>
+<div class='chunk'>
+<div class='chunk-title'>Chunk #6</div>
+<div class='chunk-meta'>Lines 25-178</div>
+<span class='tag'>merged_section
+</span>
+<span class='tag'>Has Code</span>
+<div class='section-path'>Streaming Performance Optimizations > Implementation Details</div>
+<div class='content'>Section: Streaming Performance Optimizations &gt; Implementation Details
+
+## Implementation Details
+
+Section: Streaming Performance Optimizations &gt; Implementation Details &gt; 1. Token Batching with requestAnimationFrame
+
+### 1. Token Batching with requestAnimationFrame
+
+**File**: [`useChat.ts`](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/frontend/src/hooks/useChat.ts)
+
+**Before** (Bad):
+```typescript
+// Update DOM for EVERY token - causes stuttering
+if (currentEvent === 'token' && pa...</div>
+</div>
+<div class='chunk'>
+<div class='chunk-title'>Chunk #7</div>
+<div class='chunk-meta'>Lines 179-204</div>
+<span class='tag'>merged_section
+</span>
+<span class='tag'>Has Code</span>
+<div class='section-path'>Streaming Performance Optimizations > Performance Comparison</div>
+<div class='content'>Section: Streaming Performance Optimizations &gt; Performance Comparison
+
+## Performance Comparison
+
+Section: Streaming Performance Optimizations &gt; Performance Comparison &gt; Before Optimization
+
+### Before Optimization
+
+| Metric | Value |
+|--------|-------|
+| DOM Updates/sec | ~500 |
+| Frame Rate | 15-30 fps (inconsistent) |
+| CPU Usage | 60-80% |
+| Scroll Jank | Severe |
+| User Experience | Stuttery, unresponsive |
+
+Section: Streaming Performance Optimizations &gt; Performance Comparison &gt; After Optim...</div>
+</div>
+<div class='chunk'>
+<div class='chunk-title'>Chunk #8</div>
+<div class='chunk-meta'>Lines 205-238</div>
+<span class='tag'>merged_section
+</span>
+<span class='tag'>Has Code</span>
+<div class='section-path'>Streaming Performance Optimizations > Technical Deep Dive</div>
+<div class='content'>Section: Streaming Performance Optimizations &gt; Technical Deep Dive
+
+## Technical Deep Dive
+
+Section: Streaming Performance Optimizations &gt; Technical Deep Dive &gt; Why requestAnimationFrame?
+
+### Why requestAnimationFrame?
+
+`requestAnimationFrame` is the browser's built-in mechanism for smooth animations:
+
+Section: Streaming Performance Optimizations &gt; Technical Deep Dive &gt; Why requestAnimationFrame?
+
+### Why requestAnimationFrame?
+1. **Syncs with display refresh rate** (~60Hz/60fps)
+2. **Automatic...</div>
+</div>
+<div class='chunk'>
+<div class='chunk-title'>Chunk #9</div>
+<div class='chunk-meta'>Lines 239-256</div>
+<span class='tag'>narrative
+</span>
+<span class='tag'>Has Code</span>
+<div class='section-path'>Streaming Performance Optimizations > Browser Rendering Pipeline</div>
+<div class='content'>Section: Streaming Performance Optimizations &gt; Browser Rendering Pipeline
+
+## Browser Rendering Pipeline
+
+Understanding the pipeline helps explain the optimizations:
+
+```
+JavaScript → Style → Layout → Paint → Composite
+```</div>
+</div>
+<div class='chunk'>
+<div class='chunk-title'>Chunk #10</div>
+<div class='chunk-meta'>Lines 239-256</div>
+<span class='tag'>steps
+</span>
+<div class='section-path'>Streaming Performance Optimizations > Browser Rendering Pipeline</div>
+<div class='content'>Section: Streaming Performance Optimizations &gt; Browser Rendering Pipeline
+
+## Browser Rendering Pipeline
+1. **JavaScript**: Update DOM (our token batching)
+2. **Style**: Calculate CSS (our `contain` helps)
+3. **Layout**: Calculate positions (our `contain` helps)
+4. **Paint**: Draw pixels (our `will-change` helps)
+5. **Composite**: Combine layers (our `transform` helps)
+
+Each optimization targets a specific stage to reduce work.
+
+---</div>
+</div>
+<div class='chunk'>
+<div class='chunk-title'>Chunk #11</div>
+<div class='chunk-meta'>Lines 257-286</div>
+<span class='tag'>merged_section
+</span>
+<span class='tag'>Has Code</span>
+<div class='section-path'>Streaming Performance Optimizations > Testing & Validation</div>
+<div class='content'>Section: Streaming Performance Optimizations &gt; Testing & Validation
+
+## Testing & Validation
+
+Section: Streaming Performance Optimizations &gt; Testing & Validation &gt; Test Scenario
+
+### Test Scenario
+1. Send a query that generates ~1000 token response
+2. Monitor performance during streaming
+
+Section: Streaming Performance Optimizations &gt; Testing & Validation &gt; Metrics to Check
+
+### Metrics to Check
+
+**Chrome DevTools Performance Tab**:
+- Frame rate should stay at 60fps
+- No long tasks (&gt;50ms)
+- Min...</div>
+</div>
+<div class='chunk'>
+<div class='chunk-title'>Chunk #12</div>
+<div class='chunk-meta'>Lines 287-326</div>
+<span class='tag'>merged_section
+</span>
+<span class='tag'>Has Code</span>
+<div class='section-path'>Streaming Performance Optimizations > Additional Optimizations (Future)</div>
+<div class='content'>Section: Streaming Performance Optimizations &gt; Additional Optimizations (Future)
+
+## Additional Optimizations (Future)
+
+If performance issues persist on very low-end hardware:
+
+Section: Streaming Performance Optimizations &gt; Additional Optimizations (Future) &gt; 1. Virtual Scrolling
+
+### 1. Virtual Scrolling
+Only render visible messages:
+```typescript
+// Use react-window or react-virtualized
+&lt;FixedSizeList
+  height={600}
+  itemCount={messages.length}
+  itemSize={100}
+&gt;
+  {({ index, style }) =&gt; (
+  ...</div>
+</div>
+<div class='chunk'>
+<div class='chunk-title'>Chunk #13</div>
+<div class='chunk-meta'>Lines 327-338</div>
+<span class='tag'>steps
+</span>
+<div class='section-path'>Streaming Performance Optimizations > Best Practices Applied</div>
+<div class='content'>Section: Streaming Performance Optimizations &gt; Best Practices Applied
+
+## Best Practices Applied
+1. ✅ **Batch DOM updates** - Use requestAnimationFrame
+2. ✅ **Minimize reflows** - Use CSS containment
+3. ✅ **Hardware acceleration** - Use transform: translateZ(0)
+4. ✅ **Smart scrolling** - Only when needed
+5. ✅ **Debounce expensive operations** - Scroll detection
+6. ✅ **Optimize CSS** - Use will-change sparingly
+7. ✅ **Profile before optimizing** - Measure impact
+
+---</div>
+</div>
+<div class='chunk'>
+<div class='chunk-title'>Chunk #14</div>
+<div class='chunk-meta'>Lines 339-350</div>
+<span class='tag'>section
+</span>
+<div class='section-path'>Streaming Performance Optimizations > Summary</div>
+<div class='content'>Section: Streaming Performance Optimizations &gt; Summary
+
+## Summary
+
+The optimizations transform the streaming experience from stuttery and unresponsive to smooth and fluid, especially on Windows laptops. The key insight: **batch updates to match display refresh rate** rather than updating as fast as possible.
+
+**Key Takeaways**:
+- requestAnimationFrame is your friend for smooth updates
+- Batch operations when possible
+- Use CSS performance hints wisely
+- Test on target hardware (Windows laptops)...</div>
+</div>
+</div></body></html>

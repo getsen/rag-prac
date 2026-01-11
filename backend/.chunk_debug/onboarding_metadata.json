@@ -1,0 +1,53 @@
+{
+  "document": "onboarding.md",
+  "total_chunks": 3,
+  "chunks": [
+    {
+      "chunk_id": "4255f6a366c2e36e01c2bace1f6d9cf0c9d4f354",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "Onboarding Server"
+      ],
+      "header_level": 1,
+      "start_line": 1,
+      "end_line": 2,
+      "has_code": false,
+      "commands": [],
+      "text_length": 47
+    },
+    {
+      "chunk_id": "2df3bb91d459123989fbf4b0d0bf5641c0563335",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "Onboarding Server",
+        "Prerequisites"
+      ],
+      "header_level": 2,
+      "start_line": 3,
+      "end_line": 6,
+      "has_code": false,
+      "commands": [],
+      "text_length": 111
+    },
+    {
+      "chunk_id": "3f8cdc13284290b2e72418cc1aa653267470c5ac",
+      "kind": "steps",
+      "step_no": null,
+      "section_path": [
+        "Onboarding Server",
+        "Install (Linux)"
+      ],
+      "header_level": 2,
+      "start_line": 7,
+      "end_line": 11,
+      "has_code": true,
+      "commands": [
+        "sudo apt-get update",
+        "sudo apt-get install -y onboarding-agent"
+      ],
+      "text_length": 188
+    }
+  ]
+}

@@ -1,0 +1,262 @@
+{
+  "document": "chat_statistics_display.md",
+  "total_chunks": 15,
+  "chunks": [
+    {
+      "chunk_id": "b5140e8aa1572b82b04453f64d9d4b7970dd0d44",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "Chat Statistics Display Implementation"
+      ],
+      "header_level": 1,
+      "start_line": 1,
+      "end_line": 2,
+      "has_code": false,
+      "commands": [],
+      "text_length": 89
+    },
+    {
+      "chunk_id": "aba763283bf09fdfd5bc62c91fea45eb5e262569",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "Chat Statistics Display Implementation",
+        "Overview"
+      ],
+      "header_level": 2,
+      "start_line": 3,
+      "end_line": 6,
+      "has_code": false,
+      "commands": [],
+      "text_length": 241
+    },
+    {
+      "chunk_id": "0761890eec045c19b1bf43c36894e9f768919942_merged",
+      "kind": "merged_section",
+      "step_no": null,
+      "section_path": [
+        "Chat Statistics Display Implementation",
+        "Changes Made"
+      ],
+      "header_level": 2,
+      "start_line": 7,
+      "end_line": 10,
+      "has_code": true,
+      "commands": [],
+      "text_length": 182
+    },
+    {
+      "chunk_id": "f14433769c4e788f24068e367b1bf4080ccc2998",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "Chat Statistics Display Implementation",
+        "Changes Made",
+        "Backend Changes",
+        "[schemas.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/models/schemas.py)"
+      ],
+      "header_level": 4,
+      "start_line": 11,
+      "end_line": 17,
+      "has_code": false,
+      "commands": [],
+      "text_length": 571
+    },
+    {
+      "chunk_id": "a9c151d5a0e492f4da0e34478b8f215c8af14fe6",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "Chat Statistics Display Implementation",
+        "Changes Made",
+        "Backend Changes",
+        "[graph_service.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/services/graph_service.py)"
+      ],
+      "header_level": 4,
+      "start_line": 18,
+      "end_line": 35,
+      "has_code": false,
+      "commands": [],
+      "text_length": 1062
+    },
+    {
+      "chunk_id": "6cef285ef3dca5431ffdedc6ccd5dca9890e2d48",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "Chat Statistics Display Implementation",
+        "Changes Made",
+        "Backend Changes",
+        "[chat.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/routers/chat.py)"
+      ],
+      "header_level": 4,
+      "start_line": 36,
+      "end_line": 46,
+      "has_code": false,
+      "commands": [],
+      "text_length": 575
+    },
+    {
+      "chunk_id": "36ccfe4f153ba055d35f00f6df2a72bfcc490e62",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "Chat Statistics Display Implementation",
+        "Changes Made",
+        "Frontend Changes"
+      ],
+      "header_level": 3,
+      "start_line": 47,
+      "end_line": 48,
+      "has_code": false,
+      "commands": [],
+      "text_length": 103
+    },
+    {
+      "chunk_id": "6f584ff6720ebe5d120be0623e5106f3a9add687",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "Chat Statistics Display Implementation",
+        "Changes Made",
+        "Frontend Changes",
+        "[useChat.ts](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/frontend/src/hooks/useChat.ts)"
+      ],
+      "header_level": 4,
+      "start_line": 49,
+      "end_line": 58,
+      "has_code": false,
+      "commands": [],
+      "text_length": 651
+    },
+    {
+      "chunk_id": "285e52e7442bc5dad00fcd8f3cd1f85a632d7440",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "Chat Statistics Display Implementation",
+        "Changes Made",
+        "Frontend Changes",
+        "[MessageStatistics.tsx](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/frontend/src/components/MessageStatistics.tsx)"
+      ],
+      "header_level": 4,
+      "start_line": 59,
+      "end_line": 78,
+      "has_code": false,
+      "commands": [],
+      "text_length": 1078
+    },
+    {
+      "chunk_id": "252bde5652ac8067c7b123b66e1cf97d91149d94",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "Chat Statistics Display Implementation",
+        "Changes Made",
+        "Frontend Changes",
+        "[MessageBubble.tsx](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/frontend/src/components/MessageBubble.tsx)"
+      ],
+      "header_level": 4,
+      "start_line": 79,
+      "end_line": 88,
+      "has_code": false,
+      "commands": [],
+      "text_length": 517
+    },
+    {
+      "chunk_id": "36cb78cfa9b510db65bdfd0f4985abee662b076c_merged",
+      "kind": "merged_section",
+      "step_no": null,
+      "section_path": [
+        "Chat Statistics Display Implementation",
+        "Features"
+      ],
+      "header_level": 2,
+      "start_line": 89,
+      "end_line": 119,
+      "has_code": true,
+      "commands": [],
+      "text_length": 1168
+    },
+    {
+      "chunk_id": "d67a5e606b03b93cc8e3205817cd789fef5d7f7c",
+      "kind": "narrative",
+      "step_no": null,
+      "section_path": [
+        "Chat Statistics Display Implementation",
+        "Usage"
+      ],
+      "header_level": 2,
+      "start_line": 120,
+      "end_line": 128,
+      "has_code": false,
+      "commands": [],
+      "text_length": 149
+    },
+    {
+      "chunk_id": "53e450ac6b27521239486fc3ed1a2cb21367e91c",
+      "kind": "steps",
+      "step_no": null,
+      "section_path": [
+        "Chat Statistics Display Implementation",
+        "Usage"
+      ],
+      "header_level": 2,
+      "start_line": 120,
+      "end_line": 128,
+      "has_code": false,
+      "commands": [],
+      "text_length": 326
+    },
+    {
+      "chunk_id": "05f572b805bb53dc5c04e02392b937c01a37e3bb",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "Chat Statistics Display Implementation",
+        "Example Output"
+      ],
+      "header_level": 2,
+      "start_line": 129,
+      "end_line": 158,
+      "has_code": true,
+      "commands": [
+        "\u25b6 245 tokens \u2022 1.23s",
+        "[Expanded view shows:]",
+        "TOKENS",
+        "Input: 180",
+        "Output: 65",
+        "Total: 245",
+        "CONTEXT",
+        "Documents Used: 3",
+        "Reasoning Steps: 0",
+        "SOURCE DOCUMENTS",
+        "\ud83d\udcc4 x-wp.pdf",
+        "Chunk 2 of 12",
+        "[Relevance: 0.85]",
+        "\ud83d\udcc4 h04556p1-virtualization-and-clustering-of-neeps-wp.pdf",
+        "Chunk 5 of 8",
+        "[Relevance: 0.78]",
+        "PROCESSING TIME",
+        "1.23s"
+      ],
+      "text_length": 434
+    },
+    {
+      "chunk_id": "76e3a2806b069531e2912a7be05ed3d7275d8394",
+      "kind": "steps",
+      "step_no": null,
+      "section_path": [
+        "Chat Statistics Display Implementation",
+        "Benefits"
+      ],
+      "header_level": 2,
+      "start_line": 159,
+      "end_line": 165,
+      "has_code": false,
+      "commands": [],
+      "text_length": 410
+    }
+  ]
+}

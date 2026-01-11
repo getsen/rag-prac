@@ -260,24 +260,24 @@ class ChunkProcessor:
                 )
             )
 
-        # Steps = from each step start to just before next step start
-        step_ranges = []
-        for j, (start_idx, step_no) in enumerate(step_starts):
-            end_idx = step_starts[j + 1][0] if j + 1 < len(step_starts) else len(body_lines)
-            step_ranges.append((start_idx, end_idx, step_no))
-
-        for start_idx, end_idx, step_no in step_ranges:
-            step_text = "\n".join([header_line] + body_lines[start_idx:end_idx]).strip()
+        # Steps: Group consecutive steps into one chunk to preserve context
+        # This prevents fragmentation of related sub-items (e.g., optimization techniques)
+        if step_starts:
+            # Combine all steps (from first step to end) into ONE chunk for better context
+            # This preserves the narrative flow when there are multiple sub-items
+            first_step_idx, _ = step_starts[0]
+            combined_steps_text = "\n".join([header_line] + body_lines[first_step_idx:]).strip()
+            
             out.append(
                 self.enrich_chunk(
-                    text=step_text,
+                    text=combined_steps_text,
                     doc_id=doc_id,
                     section_path=base_meta["section_path"],
                     header_level=base_meta["header_level"],
                     start_line=base_meta["start_line"],
                     end_line=base_meta["end_line"],
-                    kind="step",
-                    step_no=step_no,
+                    kind="steps",  # Use "steps" (plural) for combined step chunks
+                    step_no=None,  # No single step number for combined chunk
                 )
             )
 
@@ -392,8 +392,97 @@ class ChunkProcessor:
                 print("------------------------------")
                 print(c.text)
 
+        # Post-process: merge sibling H3+ subsections under the same H2 parent
+        chunks = self._merge_subsections(chunks)
+        
         logger.info(f"Processed {len(chunks)} chunks from {file_path}")
         return chunks
+    
+    def _merge_subsections(self, chunks: List[Chunk]) -> List[Chunk]:
+        """
+        Merge sibling H3+ subsections that belong to the same H2+ parent.
+        This prevents fragmentation of related content like "Additional Optimizations" with sub-items.
+        
+        Example:
+            Before:
+              - Chunk: "## Section" (H2)
+              - Chunk: "### 1. Sub-item" (H3)
+              - Chunk: "### 2. Sub-item" (H3)
+            
+            After:
+              - Chunk: "## Section" (H2)
+              - Chunk: "### 1. Sub-item\n### 2. Sub-item" (merged H3)
+        """
+        if not chunks:
+            return chunks
+        
+        merged = []
+        i = 0
+        
+        while i < len(chunks):
+            current_chunk = chunks[i]
+            
+            # Check if next chunks are sibling subsections (same depth parent, higher depth items)
+            if i + 1 < len(chunks):
+                next_chunk = chunks[i + 1]
+                
+                # Condition for merging:
+                # - Current chunk is H2 (header_level=2)
+                # - Next chunks are H3+ (header_level>=3)
+                # - Next chunks share the same parent path (same len of section_path)
+                if (current_chunk.header_level == 2 and 
+                    next_chunk.header_level >= 3 and
+                    len(next_chunk.section_path) == len(current_chunk.section_path) + 1):
+                    
+                    # Collect this chunk and all consecutive H3+ siblings
+                    merged_chunks_text = current_chunk.text
+                    merged_end_line = current_chunk.end_line
+                    j = i + 1
+                    
+                    while j < len(chunks):
+                        sibling = chunks[j]
+                        
+                        # Check if it's a sibling subsection
+                        if (sibling.header_level == next_chunk.header_level and
+                            len(sibling.section_path) == len(next_chunk.section_path)):
+                            # Merge it
+                            merged_chunks_text += "\n\n" + sibling.text
+                            merged_end_line = sibling.end_line
+                            j += 1
+                        else:
+                            # Not a sibling, stop merging
+                            break
+                    
+                    # Create merged chunk
+                    merged_chunk = Chunk(
+                        chunk_id=current_chunk.chunk_id + "_merged",
+                        doc_id=current_chunk.doc_id,
+                        text=merged_chunks_text,
+                        section_path=current_chunk.section_path,
+                        header_level=current_chunk.header_level,
+                        start_line=current_chunk.start_line,
+                        end_line=merged_end_line,
+                        kind="merged_section",
+                        step_no=None,
+                        has_code=True,  # Mark as having code if any sub-chunk has code
+                        commands=current_chunk.commands or [],
+                    )
+                    
+                    merged.append(merged_chunk)
+                    i = j  # Skip the merged chunks
+                else:
+                    # Not a mergeable pattern, keep as-is
+                    merged.append(current_chunk)
+                    i += 1
+            else:
+                # Last chunk, add as-is
+                merged.append(current_chunk)
+                i += 1
+        
+        if self.verbose and len(merged) < len(chunks):
+            logger.info(f"Merged subsections: {len(chunks)} → {len(merged)} chunks")
+        
+        return merged
 
 
 # Global processor instance for backward compatibility

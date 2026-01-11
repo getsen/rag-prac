@@ -1,0 +1,256 @@
+<!DOCTYPE html><html><head>
+<title>Chunks: openai_embedding_support.md</title>
+<meta charset='utf-8'><meta name='viewport' content='width=device-width'>
+<style>
+body{font-family:Arial,sans-serif;background:#f5f5f5;padding:20px;}
+.container{max-width:1400px;margin:0 auto;}
+.header{background:#2c3e50;color:white;padding:20px;border-radius:5px;margin-bottom:20px;}
+.chunk{background:white;margin-bottom:20px;padding:20px;border-left:4px solid #3498db;border-radius:5px;}
+.chunk-title{font-weight:bold;font-size:16px;margin-bottom:10px;}
+.chunk-meta{font-size:12px;color:#7f8c8d;margin-bottom:10px;}
+.tag{display:inline-block;padding:4px 8px;background:#ecf0f1;border-radius:3px;margin-right:5px;font-size:11px;}
+.section-path{color:#27ae60;font-size:12px;margin:8px 0;}
+.content{background:#f8f9fa;padding:15px;border-radius:3px;font-family:monospace;font-size:12px;max-height:400px;overflow-y:auto;white-space:pre-wrap;}
+</style></head><body>
+<div class='container'>
+<div class='header'><h1>📄 openai_embedding_support.md</h1><p>Total Chunks: 16</p></div>
+<div class='chunk'>
+<div class='chunk-title'>Chunk #1</div>
+<div class='chunk-meta'>Lines 1-2</div>
+<span class='tag'>section
+</span>
+<div class='section-path'>OpenAI Embedding Support Implementation</div>
+<div class='content'>Section: OpenAI Embedding Support Implementation
+
+# OpenAI Embedding Support Implementation</div>
+</div>
+<div class='chunk'>
+<div class='chunk-title'>Chunk #2</div>
+<div class='chunk-meta'>Lines 3-6</div>
+<span class='tag'>section
+</span>
+<div class='section-path'>OpenAI Embedding Support Implementation > Overview</div>
+<div class='content'>Section: OpenAI Embedding Support Implementation &gt; Overview
+
+## Overview
+
+Successfully implemented optional OpenAI API-based embeddings as an alternative to local HuggingFace embeddings, with automatic batch processing (max 32 chunks per API call) and enhanced document metadata tracking.</div>
+</div>
+<div class='chunk'>
+<div class='chunk-title'>Chunk #3</div>
+<div class='chunk-meta'>Lines 7-10</div>
+<span class='tag'>merged_section
+</span>
+<span class='tag'>Has Code</span>
+<div class='section-path'>OpenAI Embedding Support Implementation > Changes Made</div>
+<div class='content'>Section: OpenAI Embedding Support Implementation &gt; Changes Made
+
+## Changes Made
+
+Section: OpenAI Embedding Support Implementation &gt; Changes Made &gt; New Files Created
+
+### New Files Created</div>
+</div>
+<div class='chunk'>
+<div class='chunk-title'>Chunk #4</div>
+<div class='chunk-meta'>Lines 11-23</div>
+<span class='tag'>section
+</span>
+<div class='section-path'>OpenAI Embedding Support Implementation > Changes Made > New Files Created > [embedding_service.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/services/embedding_service.py)</div>
+<div class='content'>Section: OpenAI Embedding Support Implementation &gt; Changes Made &gt; New Files Created &gt; [embedding_service.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/services/embedding_service.py)
+
+#### [embedding_service.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/services/embedding_service.py)
+
+Created a new embedding service abstraction with:
+
+- **`EmbeddingProvider` Protocol**: Defines interface with `embed_documents()` and `embed_query()` met...</div>
+</div>
+<div class='chunk'>
+<div class='chunk-title'>Chunk #5</div>
+<div class='chunk-meta'>Lines 24-25</div>
+<span class='tag'>section
+</span>
+<div class='section-path'>OpenAI Embedding Support Implementation > Changes Made > Configuration Updates</div>
+<div class='content'>Section: OpenAI Embedding Support Implementation &gt; Changes Made &gt; Configuration Updates
+
+### Configuration Updates</div>
+</div>
+<div class='chunk'>
+<div class='chunk-title'>Chunk #6</div>
+<div class='chunk-meta'>Lines 26-36</div>
+<span class='tag'>section
+</span>
+<div class='section-path'>OpenAI Embedding Support Implementation > Changes Made > Configuration Updates > [config.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/config.py)</div>
+<div class='content'>Section: OpenAI Embedding Support Implementation &gt; Changes Made &gt; Configuration Updates &gt; [config.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/config.py)
+
+#### [config.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/config.py)
+
+Added OpenAI embedding configuration fields:
+
+- `use_openai_embeddings: bool = False` - Feature flag to enable OpenAI embeddings
+- `openai_embedding_model: str = "text-embedding-ada-002"` - Model name
+- `openai_...</div>
+</div>
+<div class='chunk'>
+<div class='chunk-title'>Chunk #7</div>
+<div class='chunk-meta'>Lines 37-38</div>
+<span class='tag'>section
+</span>
+<div class='section-path'>OpenAI Embedding Support Implementation > Changes Made > Service Updates</div>
+<div class='content'>Section: OpenAI Embedding Support Implementation &gt; Changes Made &gt; Service Updates
+
+### Service Updates</div>
+</div>
+<div class='chunk'>
+<div class='chunk-title'>Chunk #8</div>
+<div class='chunk-meta'>Lines 39-48</div>
+<span class='tag'>section
+</span>
+<div class='section-path'>OpenAI Embedding Support Implementation > Changes Made > Service Updates > [rag_service.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/services/rag_service.py)</div>
+<div class='content'>Section: OpenAI Embedding Support Implementation &gt; Changes Made &gt; Service Updates &gt; [rag_service.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/services/rag_service.py)
+
+#### [rag_service.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/services/rag_service.py)
+
+Updated to use the new embedding abstraction:
+
+- Replaced direct `SentenceTransformer` usage with `EmbeddingProvider` protocol
+- Updated `initialize()` to use `get_embedding_provi...</div>
+</div>
+<div class='chunk'>
+<div class='chunk-title'>Chunk #9</div>
+<div class='chunk-meta'>Lines 49-59</div>
+<span class='tag'>section
+</span>
+<div class='section-path'>OpenAI Embedding Support Implementation > Changes Made > Service Updates > [document_service.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/services/document_service.py)</div>
+<div class='content'>Section: OpenAI Embedding Support Implementation &gt; Changes Made &gt; Service Updates &gt; [document_service.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/services/document_service.py)
+
+#### [document_service.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/services/document_service.py)
+
+Enhanced metadata for user-uploaded documents:
+
+- `file_type` - File extension (e.g., ".pdf", ".txt")
+- `file_size` - File size in bytes
+- `upload_timestamp` -...</div>
+</div>
+<div class='chunk'>
+<div class='chunk-title'>Chunk #10</div>
+<div class='chunk-meta'>Lines 60-71</div>
+<span class='tag'>section
+</span>
+<div class='section-path'>OpenAI Embedding Support Implementation > Changes Made > Service Updates > [document_loader.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/services/document_loader.py)</div>
+<div class='content'>Section: OpenAI Embedding Support Implementation &gt; Changes Made &gt; Service Updates &gt; [document_loader.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/services/document_loader.py)
+
+#### [document_loader.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/services/document_loader.py)
+
+Enhanced metadata for auto-loaded documents:
+
+- `file_type` - File extension
+- `file_size` - File size in bytes
+- `load_timestamp` - ISO format timestamp of loadin...</div>
+</div>
+<div class='chunk'>
+<div class='chunk-title'>Chunk #11</div>
+<div class='chunk-meta'>Lines 72-73</div>
+<span class='tag'>section
+</span>
+<div class='section-path'>OpenAI Embedding Support Implementation > Changes Made > Example Configuration</div>
+<div class='content'>Section: OpenAI Embedding Support Implementation &gt; Changes Made &gt; Example Configuration
+
+### Example Configuration</div>
+</div>
+<div class='chunk'>
+<div class='chunk-title'>Chunk #12</div>
+<div class='chunk-meta'>Lines 74-77</div>
+<span class='tag'>section
+</span>
+<div class='section-path'>OpenAI Embedding Support Implementation > Changes Made > Example Configuration > [.env.embeddings.example](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/.env.embeddings.example)</div>
+<div class='content'>Section: OpenAI Embedding Support Implementation &gt; Changes Made &gt; Example Configuration &gt; [.env.embeddings.example](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/.env.embeddings.example)
+
+#### [.env.embeddings.example](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/.env.embeddings.example)
+
+Created example configuration file showing how to configure OpenAI embeddings.</div>
+</div>
+<div class='chunk'>
+<div class='chunk-title'>Chunk #13</div>
+<div class='chunk-meta'>Lines 78-111</div>
+<span class='tag'>merged_section
+</span>
+<span class='tag'>Has Code</span>
+<div class='section-path'>OpenAI Embedding Support Implementation > How to Use</div>
+<div class='content'>Section: OpenAI Embedding Support Implementation &gt; How to Use
+
+## How to Use
+
+Section: OpenAI Embedding Support Implementation &gt; How to Use &gt; Using Local Embeddings (Default)
+
+### Using Local Embeddings (Default)
+
+No configuration changes needed. The system will continue using local SentenceTransformer embeddings:
+
+```bash
+# In .env (or leave unset)
+USE_OPENAI_EMBEDDINGS=false
+```
+[CODE BLOCK - Languages: bash]
+
+Section: OpenAI Embedding Support Implementation &gt; How to Use &gt; Using OpenAI Embeddi...</div>
+</div>
+<div class='chunk'>
+<div class='chunk-title'>Chunk #14</div>
+<div class='chunk-meta'>Lines 112-142</div>
+<span class='tag'>merged_section
+</span>
+<span class='tag'>Has Code</span>
+<div class='section-path'>OpenAI Embedding Support Implementation > Key Features</div>
+<div class='content'>Section: OpenAI Embedding Support Implementation &gt; Key Features
+
+## Key Features
+
+Section: OpenAI Embedding Support Implementation &gt; Key Features &gt; Automatic Batch Processing
+
+### Automatic Batch Processing
+
+When using OpenAI embeddings, documents are automatically batched to comply with API payload limits:
+
+- Default batch size: 32 chunks per API call
+- Configurable via `OPENAI_EMBEDDING_BATCH_SIZE`
+- Automatic batching happens transparently in `embed_documents()`
+- Progress logging shows batch...</div>
+</div>
+<div class='chunk'>
+<div class='chunk-title'>Chunk #15</div>
+<div class='chunk-meta'>Lines 143-151</div>
+<span class='tag'>section
+</span>
+<span class='tag'>Has Code</span>
+<div class='section-path'>OpenAI Embedding Support Implementation > Verification</div>
+<div class='content'>Section: OpenAI Embedding Support Implementation &gt; Verification
+
+## Verification
+
+Import verification passed successfully:
+
+```bash
+python3 -c "from app.services.embedding_service import get_embedding_provider; print('Import successful')"
+# Output: Import successful
+```
+[CODE BLOCK - Languages: bash]</div>
+</div>
+<div class='chunk'>
+<div class='chunk-title'>Chunk #16</div>
+<div class='chunk-meta'>Lines 152-159</div>
+<span class='tag'>section
+</span>
+<div class='section-path'>OpenAI Embedding Support Implementation > Backward Compatibility</div>
+<div class='content'>Section: OpenAI Embedding Support Implementation &gt; Backward Compatibility
+
+## Backward Compatibility
+
+The implementation is fully backward compatible:
+
+- Default behavior unchanged (uses local embeddings)
+- Existing documents continue to work
+- Feature flag (`use_openai_embeddings`) controls behavior
+- No breaking changes to existing APIs</div>
+</div>
+</div></body></html>

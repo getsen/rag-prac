@@ -1,0 +1,239 @@
+{
+  "document": "session_management_apis.md",
+  "total_chunks": 15,
+  "chunks": [
+    {
+      "chunk_id": "fb01fc25af410294c8624dc40a2003a8137ecfce",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "Session Management APIs Implementation"
+      ],
+      "header_level": 1,
+      "start_line": 1,
+      "end_line": 2,
+      "has_code": false,
+      "commands": [],
+      "text_length": 89
+    },
+    {
+      "chunk_id": "6bf5fba11a791fa21f49af3d58b7491d028156db",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "Session Management APIs Implementation",
+        "Overview"
+      ],
+      "header_level": 2,
+      "start_line": 3,
+      "end_line": 6,
+      "has_code": false,
+      "commands": [],
+      "text_length": 203
+    },
+    {
+      "chunk_id": "9dcea9868f32477c1562c96b586809c69a7254f7_merged",
+      "kind": "merged_section",
+      "step_no": null,
+      "section_path": [
+        "Session Management APIs Implementation",
+        "New Endpoints"
+      ],
+      "header_level": 2,
+      "start_line": 7,
+      "end_line": 104,
+      "has_code": true,
+      "commands": [],
+      "text_length": 2605
+    },
+    {
+      "chunk_id": "75b96943e61cee39931a373eae95f3141b1be0ef_merged",
+      "kind": "merged_section",
+      "step_no": null,
+      "section_path": [
+        "Session Management APIs Implementation",
+        "Implementation Details"
+      ],
+      "header_level": 2,
+      "start_line": 105,
+      "end_line": 108,
+      "has_code": true,
+      "commands": [],
+      "text_length": 212
+    },
+    {
+      "chunk_id": "0fa36ca2af380f5de232d1ba84542b061c67132f",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "Session Management APIs Implementation",
+        "Implementation Details",
+        "Backend Changes",
+        "[session_service.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/services/session_service.py)"
+      ],
+      "header_level": 4,
+      "start_line": 109,
+      "end_line": 116,
+      "has_code": false,
+      "commands": [],
+      "text_length": 515
+    },
+    {
+      "chunk_id": "fab8c3ded383aa84ec31148735f94fe0a5b352d7",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "Session Management APIs Implementation",
+        "Implementation Details",
+        "Backend Changes",
+        "[sessions.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/routers/sessions.py) (NEW)"
+      ],
+      "header_level": 4,
+      "start_line": 117,
+      "end_line": 124,
+      "has_code": false,
+      "commands": [],
+      "text_length": 457
+    },
+    {
+      "chunk_id": "a78053b95e204f7cf16190ef6717d41cb7d32272",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "Session Management APIs Implementation",
+        "Implementation Details",
+        "Backend Changes",
+        "[main.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/main.py)"
+      ],
+      "header_level": 4,
+      "start_line": 125,
+      "end_line": 134,
+      "has_code": true,
+      "commands": [
+        "from app.routers import sessions",
+        "app.include_router(sessions.router)"
+      ],
+      "text_length": 432
+    },
+    {
+      "chunk_id": "521f29707e2ab43db4fce581ad772085c9f375ea_merged",
+      "kind": "merged_section",
+      "step_no": null,
+      "section_path": [
+        "Session Management APIs Implementation",
+        "Usage Examples"
+      ],
+      "header_level": 2,
+      "start_line": 135,
+      "end_line": 168,
+      "has_code": true,
+      "commands": [],
+      "text_length": 1193
+    },
+    {
+      "chunk_id": "36cbcfb98db820e1bedd11058cc5ad7160e7bb41",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "Session Management APIs Implementation",
+        "API Documentation"
+      ],
+      "header_level": 2,
+      "start_line": 169,
+      "end_line": 182,
+      "has_code": false,
+      "commands": [],
+      "text_length": 332
+    },
+    {
+      "chunk_id": "aabadc44526b9c5b732e75a715c40d20494cc45d_merged",
+      "kind": "merged_section",
+      "step_no": null,
+      "section_path": [
+        "Session Management APIs Implementation",
+        "Use Cases"
+      ],
+      "header_level": 2,
+      "start_line": 183,
+      "end_line": 201,
+      "has_code": true,
+      "commands": [],
+      "text_length": 931
+    },
+    {
+      "chunk_id": "793042d1f17f77167acf63c4db0fe08cd26d0c43",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "Session Management APIs Implementation",
+        "Security Considerations"
+      ],
+      "header_level": 2,
+      "start_line": 202,
+      "end_line": 214,
+      "has_code": false,
+      "commands": [],
+      "text_length": 434
+    },
+    {
+      "chunk_id": "110f441fc4bef6cd06b7209388ea282fc1275f71",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "Session Management APIs Implementation",
+        "Performance Notes"
+      ],
+      "header_level": 2,
+      "start_line": 215,
+      "end_line": 228,
+      "has_code": false,
+      "commands": [],
+      "text_length": 500
+    },
+    {
+      "chunk_id": "ce87bc38b49427591cacb70cf63ca29782b961a7",
+      "kind": "narrative",
+      "step_no": null,
+      "section_path": [
+        "Session Management APIs Implementation",
+        "Testing"
+      ],
+      "header_level": 2,
+      "start_line": 229,
+      "end_line": 238,
+      "has_code": false,
+      "commands": [],
+      "text_length": 134
+    },
+    {
+      "chunk_id": "74a95f7ea94540e09a08d19aac7cfb314db61861",
+      "kind": "steps",
+      "step_no": null,
+      "section_path": [
+        "Session Management APIs Implementation",
+        "Testing"
+      ],
+      "header_level": 2,
+      "start_line": 229,
+      "end_line": 238,
+      "has_code": false,
+      "commands": [],
+      "text_length": 226
+    },
+    {
+      "chunk_id": "523854b5a30dda72beab6970ade40e6b0e249908",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "Session Management APIs Implementation",
+        "Future Enhancements"
+      ],
+      "header_level": 2,
+      "start_line": 239,
+      "end_line": 246,
+      "has_code": false,
+      "commands": [],
+      "text_length": 287
+    }
+  ]
+}

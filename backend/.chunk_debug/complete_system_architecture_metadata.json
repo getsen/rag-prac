@@ -1,0 +1,684 @@
+{
+  "document": "complete_system_architecture.md",
+  "total_chunks": 30,
+  "chunks": [
+    {
+      "chunk_id": "ab43a06e7f73a65ba1bf73151531419fce7c2a24",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "AI Chat Application - Complete System Architecture & Flow"
+      ],
+      "header_level": 1,
+      "start_line": 1,
+      "end_line": 2,
+      "has_code": false,
+      "commands": [],
+      "text_length": 127
+    },
+    {
+      "chunk_id": "16418bf5dd5d27a891fd55fb63924c6ffa8c212c",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "AI Chat Application - Complete System Architecture & Flow",
+        "Executive Summary"
+      ],
+      "header_level": 2,
+      "start_line": 3,
+      "end_line": 16,
+      "has_code": false,
+      "commands": [],
+      "text_length": 710
+    },
+    {
+      "chunk_id": "c75856ab9c4611c4c9528fc1616f1b68c538116a",
+      "kind": "steps",
+      "step_no": null,
+      "section_path": [
+        "AI Chat Application - Complete System Architecture & Flow",
+        "Table of Contents"
+      ],
+      "header_level": 2,
+      "start_line": 17,
+      "end_line": 28,
+      "has_code": false,
+      "commands": [],
+      "text_length": 512
+    },
+    {
+      "chunk_id": "33819e83c25fb3d63eacb5a2e626d6646f7fd31a",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "AI Chat Application - Complete System Architecture & Flow",
+        "System Architecture"
+      ],
+      "header_level": 2,
+      "start_line": 29,
+      "end_line": 63,
+      "has_code": true,
+      "commands": [
+        "\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510",
+        "\u2502                      Frontend (Next.js)                      \u2502",
+        "\u2502  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510    \u2502",
+        "\u2502  \u2502   Chat UI  \u2502  \u2502  useChat Hook \u2502  \u2502  SSE Event       \u2502    \u2502",
+        "\u2502  \u2502            \u2502\u2500\u2500\u2502               \u2502\u2500\u2500\u2502  Handler         \u2502    \u2502",
+        "\u2502  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518    \u2502",
+        "\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518",
+        "                             \u2502 HTTP/SSE",
+        "                             \u25bc",
+        "\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510",
+        "\u2502                    Backend (FastAPI)                         \u2502",
+        "\u2502  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510  \u2502",
+        "\u2502  \u2502   Routers    \u2502  \u2502   Services   \u2502  \u2502   Providers      \u2502  \u2502",
+        "\u2502  \u2502  /api/chat   \u2502\u2500\u2500\u2502  - Graph     \u2502\u2500\u2500\u2502  - Ollama        \u2502  \u2502",
+        "\u2502  \u2502  /api/docs   \u2502  \u2502  - RAG       \u2502  \u2502  - LlamaCPP      \u2502  \u2502",
+        "\u2502  \u2502              \u2502  \u2502  - Fusion    \u2502  \u2502  - HuggingFace   \u2502  \u2502",
+        "\u2502  \u2502              \u2502  \u2502  - Session   \u2502  \u2502  - OpenAI        \u2502  \u2502",
+        "\u2502  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518  \u2502",
+        "\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518",
+        "                             \u2502",
+        "                             \u25bc",
+        "\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510",
+        "\u2502                    Data Layer (ChromaDB)                     \u2502",
+        "\u2502  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510  \u2502",
+        "\u2502  \u2502  Documents   \u2502  \u2502  Sessions    \u2502  \u2502  Embeddings      \u2502  \u2502",
+        "\u2502  \u2502  Collection  \u2502  \u2502  Collection  \u2502  \u2502  (Local/OpenAI)  \u2502  \u2502",
+        "\u2502  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518  \u2502",
+        "\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518"
+      ],
+      "text_length": 1785
+    },
+    {
+      "chunk_id": "f6f75820a2412cabde0cdbaaf5c4750a30de355d_merged",
+      "kind": "merged_section",
+      "step_no": null,
+      "section_path": [
+        "AI Chat Application - Complete System Architecture & Flow",
+        "Application Startup Flow"
+      ],
+      "header_level": 2,
+      "start_line": 64,
+      "end_line": 163,
+      "has_code": true,
+      "commands": [],
+      "text_length": 4264
+    },
+    {
+      "chunk_id": "5a18000f74226a71bb08fe61380dc9a6a002e160",
+      "kind": "narrative",
+      "step_no": null,
+      "section_path": [
+        "AI Chat Application - Complete System Architecture & Flow",
+        "Chat Flow - Without RAG"
+      ],
+      "header_level": 2,
+      "start_line": 164,
+      "end_line": 247,
+      "has_code": true,
+      "commands": [
+        "sequenceDiagram",
+        "    participant U as User",
+        "    participant F as Frontend",
+        "    participant B as Backend API",
+        "    participant G as Graph Service",
+        "    participant S as Session Service",
+        "    participant L as LLM Provider",
+        "    U->>F: Type message & send",
+        "    F->>F: Add user message to UI",
+        "    F->>F: Create placeholder for assistant",
+        "    F->>B: POST /api/chat/stream",
+        "    Note over F,B: {message, conversation_id, use_rag: false}",
+        "    B->>G: chat_stream()",
+        "    G->>S: get_conversation_history()",
+        "    S-->>G: Previous messages (last 6)",
+        "    G->>G: Create system prompt with history",
+        "    Note over G: \"You are a helpful AI assistant...\"<br/>+ conversation history",
+        "    G->>L: generate_stream(prompt)",
+        "    loop For each token",
+        "        L-->>G: Token",
+        "        G-->>B: {token: \"...\"}",
+        "        B-->>F: SSE: event=token",
+        "        F->>F: Append token to message",
+        "    end",
+        "    G->>G: Calculate statistics",
+        "    G-->>B: {statistics: {...}}",
+        "    B-->>F: SSE: event=statistics",
+        "    F->>F: Attach statistics to message",
+        "    G->>S: save_message(user)",
+        "    G->>S: save_message(assistant)",
+        "    B-->>F: SSE: event=end",
+        "    F->>F: Mark loading complete"
+      ],
+      "text_length": 1396
+    },
+    {
+      "chunk_id": "13b18fa9254525db9e943a47dd91840883d88569",
+      "kind": "steps",
+      "step_no": null,
+      "section_path": [
+        "AI Chat Application - Complete System Architecture & Flow",
+        "Chat Flow - Without RAG"
+      ],
+      "header_level": 2,
+      "start_line": 164,
+      "end_line": 247,
+      "has_code": false,
+      "commands": [],
+      "text_length": 1388
+    },
+    {
+      "chunk_id": "0d736d7316672fd7c3d11a69bb3b848b08495820",
+      "kind": "narrative",
+      "step_no": null,
+      "section_path": [
+        "AI Chat Application - Complete System Architecture & Flow",
+        "Chat Flow - With Simple RAG"
+      ],
+      "header_level": 2,
+      "start_line": 248,
+      "end_line": 350,
+      "has_code": true,
+      "commands": [
+        "sequenceDiagram",
+        "    participant U as User",
+        "    participant F as Frontend",
+        "    participant B as Backend API",
+        "    participant G as Graph Service",
+        "    participant R as RAG Service",
+        "    participant E as Embedding Provider",
+        "    participant C as ChromaDB",
+        "    participant L as LLM Provider",
+        "    U->>F: Type message & send (RAG ON)",
+        "    F->>B: POST /api/chat/stream",
+        "    Note over F,B: {message, use_rag: true}",
+        "    B->>G: chat_stream(use_rag=true)",
+        "    G->>E: embed_query(message)",
+        "    E-->>G: Query embedding vector",
+        "    G->>R: search(query, n_results=3)",
+        "    R->>C: query(embedding, n=3)",
+        "    C-->>R: Top 3 similar documents",
+        "    R-->>G: Documents with metadata",
+        "    G->>G: Build context from documents",
+        "    Note over G: [Document 1]<br/>content...<br/>[Document 2]<br/>content...",
+        "    G->>G: Create enhanced prompt",
+        "    Note over G: System prompt<br/>+ conversation history<br/>+ RAG context<br/>+ user message",
+        "    G->>L: generate_stream(enhanced_prompt)",
+        "    loop For each token",
+        "        L-->>G: Token",
+        "        G-->>B: {token: \"...\"}",
+        "        B-->>F: SSE: event=token",
+        "    end",
+        "    G->>G: Calculate statistics",
+        "    Note over G: Include source documents",
+        "    G-->>B: {statistics: {source_documents: [...]}}",
+        "    B-->>F: SSE: event=statistics",
+        "    F->>F: Display sources in UI"
+      ],
+      "text_length": 1553
+    },
+    {
+      "chunk_id": "2a9802e27185495c44c7031b8dfcb2bf61ccfa34",
+      "kind": "steps",
+      "step_no": null,
+      "section_path": [
+        "AI Chat Application - Complete System Architecture & Flow",
+        "Chat Flow - With Simple RAG"
+      ],
+      "header_level": 2,
+      "start_line": 248,
+      "end_line": 350,
+      "has_code": true,
+      "commands": [
+        "     [Document 1]",
+        "     <content from chunk 1>",
+        "     [Document 2]",
+        "     <content from chunk 2>",
+        "     You are a helpful AI assistant...",
+        "     Previous conversation:",
+        "     User: What is X?",
+        "     Assistant: X is...",
+        "     Use the following context:",
+        "     [Document 1]",
+        "     X is a software platform...",
+        "     User: Tell me more about its features",
+        "     Assistant:"
+      ],
+      "text_length": 1509
+    },
+    {
+      "chunk_id": "5ea46e7659ac1d42321131b638b18b5be177391f",
+      "kind": "narrative",
+      "step_no": null,
+      "section_path": [
+        "AI Chat Application - Complete System Architecture & Flow",
+        "Chat Flow - With Fusion Retrieval (RRF)"
+      ],
+      "header_level": 2,
+      "start_line": 351,
+      "end_line": 480,
+      "has_code": true,
+      "commands": [
+        "sequenceDiagram",
+        "    participant U as User",
+        "    participant F as Frontend",
+        "    participant B as Backend API",
+        "    participant G as Graph Service",
+        "    participant FR as Fusion RAG Service",
+        "    participant E as Embedding Provider",
+        "    participant BM as BM25 Index",
+        "    participant L as LLM Provider",
+        "    participant C as ChromaDB",
+        "    U->>F: Type question (RAG + Fusion ON)",
+        "    F->>B: POST /api/chat/stream",
+        "    Note over F,B: {message, use_rag: true,<br/>use_fusion: true}",
+        "    B->>G: chat_stream(use_fusion=true)",
+        "    G->>FR: fusion_search_with_diversity()",
+        "    Note over FR: Multi-Strategy Retrieval",
+        "    par Strategy 1: Vector Search",
+        "        FR->>E: embed_query(message)",
+        "        E-->>FR: Query embedding",
+        "        FR->>C: query(embedding, n=10)",
+        "        C-->>FR: Top 10 by vector similarity",
+        "    and Strategy 2: BM25 Keyword",
+        "        FR->>BM: Build/use BM25 index",
+        "        BM-->>FR: Top 10 by keyword match",
+        "    and Strategy 3: Multi-Query",
+        "        FR->>L: Generate query variations",
+        "        L-->>FR: 2-3 query variations",
+        "        FR->>C: Search each variation",
+        "        C-->>FR: Results per variation",
+        "    end",
+        "    FR->>FR: Apply Reciprocal Rank Fusion",
+        "    Note over FR: Combine rankings:<br/>RRF score = \u03a3(1/(k+rank))<br/>k=60 (default)",
+        "    FR->>FR: Enforce source diversity",
+        "    Note over FR: Ensure min 2 unique sources<br/>Deduplicate by content",
+        "    FR-->>G: Top 5 documents with RRF scores",
+        "    G->>G: Build enhanced context",
+        "    Note over G: [Document 1 - Source: X - RRF: 0.85]<br/>content...",
+        "    G->>L: generate_stream(enhanced_prompt)",
+        "    loop For each token",
+        "        L-->>G: Token",
+        "        G-->>B: {token: \"...\"}",
+        "        B-->>F: SSE: event=token",
+        "    end",
+        "    G-->>B: {statistics: {<br/>num_documents: 5,<br/>unique_sources: 3,<br/>strategies: [\"vector\", \"bm25\", \"multi_query\"]}}",
+        "    B-->>F: SSE: event=statistics",
+        "    F->>F: Display fusion statistics"
+      ],
+      "text_length": 2189
+    },
+    {
+      "chunk_id": "5dbea94fcbe91b10e674d59f71f0cc0e84dd0914",
+      "kind": "steps",
+      "step_no": null,
+      "section_path": [
+        "AI Chat Application - Complete System Architecture & Flow",
+        "Chat Flow - With Fusion Retrieval (RRF)"
+      ],
+      "header_level": 2,
+      "start_line": 351,
+      "end_line": 480,
+      "has_code": true,
+      "commands": [
+        "     Document A: Vector rank=1, BM25 rank=3, Multi-query rank=2",
+        "     RRF = 1/(60+1) + 1/(60+3) + 1/(60+2) = 0.0164 + 0.0159 + 0.0161 = 0.0484",
+        "     [Document 1 - Source: guide.pdf - RRF Score: 0.856]",
+        "     Content from the document...",
+        "     [Document 2 - Source: manual.txt - RRF Score: 0.742]",
+        "     Content from another document...",
+        "     [Fusion Search Stats: 5 docs from 3 sources using vector, bm25, multi_query]"
+      ],
+      "text_length": 2501
+    },
+    {
+      "chunk_id": "be288ea0d2bc2a01997ae90922dc278fd155bcfc",
+      "kind": "narrative",
+      "step_no": null,
+      "section_path": [
+        "AI Chat Application - Complete System Architecture & Flow",
+        "Document Upload Flow"
+      ],
+      "header_level": 2,
+      "start_line": 481,
+      "end_line": 579,
+      "has_code": true,
+      "commands": [
+        "sequenceDiagram",
+        "    participant U as User",
+        "    participant F as Frontend",
+        "    participant B as Backend API",
+        "    participant DS as Document Service",
+        "    participant DL as Document Loader",
+        "    participant E as Embedding Provider",
+        "    participant R as RAG Service",
+        "    participant C as ChromaDB",
+        "    U->>F: Select file & upload",
+        "    F->>B: POST /api/documents/upload",
+        "    Note over F,B: FormData with file",
+        "    B->>DS: upload_document(file)",
+        "    DS->>DS: Calculate MD5 hash",
+        "    DS->>DS: Check hash registry",
+        "    alt File is duplicate",
+        "        DS-->>B: {status: \"duplicate\"}",
+        "        B-->>F: Duplicate message",
+        "    else New file",
+        "        DS->>DS: Save file to uploads/",
+        "        DS->>DL: extract_text(file)",
+        "        alt PDF file",
+        "            DL->>DL: Try standard extraction",
+        "            alt Scanned PDF",
+        "                DL->>DL: OCR with Tesseract",
+        "            end",
+        "            DL->>DL: Extract tables",
+        "            DL->>DL: Extract images & OCR",
+        "        else TXT/MD file",
+        "            DL->>DL: Read text directly",
+        "        end",
+        "        DL-->>DS: Extracted text",
+        "        DS->>DL: chunk_text(text)",
+        "        DL-->>DS: Text chunks (1000 chars, 200 overlap)",
+        "        loop For each chunk",
+        "            DS->>E: embed_documents([chunk])",
+        "            E-->>DS: Embedding vector",
+        "            DS->>R: add_document(chunk, metadata)",
+        "            R->>C: Store chunk + embedding + metadata",
+        "        end",
+        "        DS->>DS: Update hash registry",
+        "        DS-->>B: {status: \"uploaded\", chunks: N}",
+        "        B-->>F: Success message",
+        "        F->>F: Show success notification",
+        "    end"
+      ],
+      "text_length": 1792
+    },
+    {
+      "chunk_id": "73a88c7a859159fe1e55ba20910f7f2112d7823e",
+      "kind": "steps",
+      "step_no": null,
+      "section_path": [
+        "AI Chat Application - Complete System Architecture & Flow",
+        "Document Upload Flow"
+      ],
+      "header_level": 2,
+      "start_line": 481,
+      "end_line": 579,
+      "has_code": false,
+      "commands": [],
+      "text_length": 1434
+    },
+    {
+      "chunk_id": "f9a37e3f9224b71823853d228d64db968be527a6_merged",
+      "kind": "merged_section",
+      "step_no": null,
+      "section_path": [
+        "AI Chat Application - Complete System Architecture & Flow",
+        "Component Details"
+      ],
+      "header_level": 2,
+      "start_line": 580,
+      "end_line": 583,
+      "has_code": true,
+      "commands": [],
+      "text_length": 237
+    },
+    {
+      "chunk_id": "fa9d28012c1820cab01591d72b54c635ab89d43e",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "AI Chat Application - Complete System Architecture & Flow",
+        "Component Details",
+        "Backend Services",
+        "Graph Service (`graph_service.py`)"
+      ],
+      "header_level": 4,
+      "start_line": 584,
+      "end_line": 595,
+      "has_code": false,
+      "commands": [],
+      "text_length": 524
+    },
+    {
+      "chunk_id": "6d94d92983280c5b35755770c6651354df77e686",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "AI Chat Application - Complete System Architecture & Flow",
+        "Component Details",
+        "Backend Services",
+        "RAG Service (`rag_service.py`)"
+      ],
+      "header_level": 4,
+      "start_line": 596,
+      "end_line": 603,
+      "has_code": false,
+      "commands": [],
+      "text_length": 441
+    },
+    {
+      "chunk_id": "21872f0621cd1e107b2a17f78c49c1963a63736c",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "AI Chat Application - Complete System Architecture & Flow",
+        "Component Details",
+        "Backend Services",
+        "Session Service (`session_service.py`)"
+      ],
+      "header_level": 4,
+      "start_line": 604,
+      "end_line": 610,
+      "has_code": false,
+      "commands": [],
+      "text_length": 413
+    },
+    {
+      "chunk_id": "e2048fd2b421ded80b30978cf977fa4f7a0b8148",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "AI Chat Application - Complete System Architecture & Flow",
+        "Component Details",
+        "Backend Services",
+        "Fusion RAG Service (`fusion_rag_service.py`)"
+      ],
+      "header_level": 4,
+      "start_line": 611,
+      "end_line": 628,
+      "has_code": false,
+      "commands": [],
+      "text_length": 993
+    },
+    {
+      "chunk_id": "309b1a35fff3b22c084885448b6ab9f9a9f93420",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "AI Chat Application - Complete System Architecture & Flow",
+        "Component Details",
+        "Backend Services",
+        "Embedding Service (`embedding_service.py`)"
+      ],
+      "header_level": 4,
+      "start_line": 629,
+      "end_line": 634,
+      "has_code": false,
+      "commands": [],
+      "text_length": 379
+    },
+    {
+      "chunk_id": "e5526193eb2dc04bc41c048e8ec8a57a946612d0",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "AI Chat Application - Complete System Architecture & Flow",
+        "Component Details",
+        "Frontend Components"
+      ],
+      "header_level": 3,
+      "start_line": 635,
+      "end_line": 636,
+      "has_code": false,
+      "commands": [],
+      "text_length": 133
+    },
+    {
+      "chunk_id": "5c071e2772c6e2e23567a008ae3ae44184cb5fa8",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "AI Chat Application - Complete System Architecture & Flow",
+        "Component Details",
+        "Frontend Components",
+        "useChat Hook (`useChat.ts`)"
+      ],
+      "header_level": 4,
+      "start_line": 637,
+      "end_line": 644,
+      "has_code": false,
+      "commands": [],
+      "text_length": 344
+    },
+    {
+      "chunk_id": "185f28aaff7efd87a800a80b45fe52a96527f68d",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "AI Chat Application - Complete System Architecture & Flow",
+        "Component Details",
+        "Frontend Components",
+        "MessageBubble (`MessageBubble.tsx`)"
+      ],
+      "header_level": 4,
+      "start_line": 645,
+      "end_line": 651,
+      "has_code": false,
+      "commands": [],
+      "text_length": 336
+    },
+    {
+      "chunk_id": "4c64d885fd27a02d712e9c2865db8d5b7f540eef",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "AI Chat Application - Complete System Architecture & Flow",
+        "Component Details",
+        "Frontend Components",
+        "MessageStatistics (`MessageStatistics.tsx`)"
+      ],
+      "header_level": 4,
+      "start_line": 652,
+      "end_line": 661,
+      "has_code": false,
+      "commands": [],
+      "text_length": 447
+    },
+    {
+      "chunk_id": "b5129af58e0e692d9c33ed4491535ab8cc1689e9_merged",
+      "kind": "merged_section",
+      "step_no": null,
+      "section_path": [
+        "AI Chat Application - Complete System Architecture & Flow",
+        "Configuration"
+      ],
+      "header_level": 2,
+      "start_line": 662,
+      "end_line": 694,
+      "has_code": true,
+      "commands": [],
+      "text_length": 906
+    },
+    {
+      "chunk_id": "1dae6755d4f8a8a042808e90402c0cbbde666d42_merged",
+      "kind": "merged_section",
+      "step_no": null,
+      "section_path": [
+        "AI Chat Application - Complete System Architecture & Flow",
+        "Performance Characteristics"
+      ],
+      "header_level": 2,
+      "start_line": 695,
+      "end_line": 720,
+      "has_code": true,
+      "commands": [],
+      "text_length": 1338
+    },
+    {
+      "chunk_id": "33622b442ff043652b8f3da19a4c330162dafdbb_merged",
+      "kind": "merged_section",
+      "step_no": null,
+      "section_path": [
+        "AI Chat Application - Complete System Architecture & Flow",
+        "Error Handling"
+      ],
+      "header_level": 2,
+      "start_line": 721,
+      "end_line": 742,
+      "has_code": true,
+      "commands": [],
+      "text_length": 694
+    },
+    {
+      "chunk_id": "1f02bc0a44cd762c50f6572e6703ff94ad547a96",
+      "kind": "steps",
+      "step_no": null,
+      "section_path": [
+        "AI Chat Application - Complete System Architecture & Flow",
+        "Security Considerations"
+      ],
+      "header_level": 2,
+      "start_line": 743,
+      "end_line": 751,
+      "has_code": false,
+      "commands": [],
+      "text_length": 373
+    },
+    {
+      "chunk_id": "b518bc3760ad773a33cc5fedd75cc7022b00214c",
+      "kind": "steps",
+      "step_no": null,
+      "section_path": [
+        "AI Chat Application - Complete System Architecture & Flow",
+        "Scalability Notes"
+      ],
+      "header_level": 2,
+      "start_line": 752,
+      "end_line": 760,
+      "has_code": false,
+      "commands": [],
+      "text_length": 389
+    },
+    {
+      "chunk_id": "ff992602cab6d9d74575740825c5f67177bd76a2_merged",
+      "kind": "merged_section",
+      "step_no": null,
+      "section_path": [
+        "AI Chat Application - Complete System Architecture & Flow",
+        "Monitoring & Observability"
+      ],
+      "header_level": 2,
+      "start_line": 761,
+      "end_line": 777,
+      "has_code": true,
+      "commands": [],
+      "text_length": 758
+    },
+    {
+      "chunk_id": "b3fae49b9f02bd053c047a2f7acd972a413b5a1c",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "AI Chat Application - Complete System Architecture & Flow",
+        "Conclusion"
+      ],
+      "header_level": 2,
+      "start_line": 778,
+      "end_line": 804,
+      "has_code": false,
+      "commands": [],
+      "text_length": 1507
+    }
+  ]
+}

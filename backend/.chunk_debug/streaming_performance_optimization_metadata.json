@@ -1,0 +1,217 @@
+{
+  "document": "streaming_performance_optimization.md",
+  "total_chunks": 14,
+  "chunks": [
+    {
+      "chunk_id": "6ac13587dfb843cb748267d4d7ee6c55ec31b0be",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "Streaming Performance Optimizations"
+      ],
+      "header_level": 1,
+      "start_line": 1,
+      "end_line": 2,
+      "has_code": false,
+      "commands": [],
+      "text_length": 83
+    },
+    {
+      "chunk_id": "8dbfa9c80f1dc9ab5eb2fd74fcbd27402f720770",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "Streaming Performance Optimizations",
+        "Problem"
+      ],
+      "header_level": 2,
+      "start_line": 3,
+      "end_line": 6,
+      "has_code": false,
+      "commands": [],
+      "text_length": 192
+    },
+    {
+      "chunk_id": "c038e6a1f661085ad8c68132cd042d8cd76505f0",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "Streaming Performance Optimizations",
+        "Root Cause"
+      ],
+      "header_level": 2,
+      "start_line": 7,
+      "end_line": 14,
+      "has_code": false,
+      "commands": [],
+      "text_length": 395
+    },
+    {
+      "chunk_id": "e92303d9aea72a8dae12c74ff57593475c7df05c",
+      "kind": "narrative",
+      "step_no": null,
+      "section_path": [
+        "Streaming Performance Optimizations",
+        "Solution Overview"
+      ],
+      "header_level": 2,
+      "start_line": 15,
+      "end_line": 24,
+      "has_code": false,
+      "commands": [],
+      "text_length": 129
+    },
+    {
+      "chunk_id": "ddc16b92b67c86ebef642540a760f9820de32b0a",
+      "kind": "steps",
+      "step_no": null,
+      "section_path": [
+        "Streaming Performance Optimizations",
+        "Solution Overview"
+      ],
+      "header_level": 2,
+      "start_line": 15,
+      "end_line": 24,
+      "has_code": false,
+      "commands": [],
+      "text_length": 275
+    },
+    {
+      "chunk_id": "7604ae08d57ac2909be8a3904582e5156034d62b_merged",
+      "kind": "merged_section",
+      "step_no": null,
+      "section_path": [
+        "Streaming Performance Optimizations",
+        "Implementation Details"
+      ],
+      "header_level": 2,
+      "start_line": 25,
+      "end_line": 178,
+      "has_code": true,
+      "commands": [],
+      "text_length": 4756
+    },
+    {
+      "chunk_id": "8818b927bfc0699f57b1628f911d6baa6448f34c_merged",
+      "kind": "merged_section",
+      "step_no": null,
+      "section_path": [
+        "Streaming Performance Optimizations",
+        "Performance Comparison"
+      ],
+      "header_level": 2,
+      "start_line": 179,
+      "end_line": 204,
+      "has_code": true,
+      "commands": [],
+      "text_length": 823
+    },
+    {
+      "chunk_id": "a7d1bcb64e5b240f27d3b57b3c76f724fd2eaf4a_merged",
+      "kind": "merged_section",
+      "step_no": null,
+      "section_path": [
+        "Streaming Performance Optimizations",
+        "Technical Deep Dive"
+      ],
+      "header_level": 2,
+      "start_line": 205,
+      "end_line": 238,
+      "has_code": true,
+      "commands": [],
+      "text_length": 1165
+    },
+    {
+      "chunk_id": "07cb0aa2cbb05208c8ae781a7c0988429805bfe8",
+      "kind": "narrative",
+      "step_no": null,
+      "section_path": [
+        "Streaming Performance Optimizations",
+        "Browser Rendering Pipeline"
+      ],
+      "header_level": 2,
+      "start_line": 239,
+      "end_line": 256,
+      "has_code": true,
+      "commands": [
+        "JavaScript \u2192 Style \u2192 Layout \u2192 Paint \u2192 Composite"
+      ],
+      "text_length": 222
+    },
+    {
+      "chunk_id": "67eda826f006e841a3d9551efa9a1acb2bd6b175",
+      "kind": "steps",
+      "step_no": null,
+      "section_path": [
+        "Streaming Performance Optimizations",
+        "Browser Rendering Pipeline"
+      ],
+      "header_level": 2,
+      "start_line": 239,
+      "end_line": 256,
+      "has_code": false,
+      "commands": [],
+      "text_length": 436
+    },
+    {
+      "chunk_id": "a4e3fde72f2aff3f27138e8136b0f3d500800b8a_merged",
+      "kind": "merged_section",
+      "step_no": null,
+      "section_path": [
+        "Streaming Performance Optimizations",
+        "Testing & Validation"
+      ],
+      "header_level": 2,
+      "start_line": 257,
+      "end_line": 286,
+      "has_code": true,
+      "commands": [],
+      "text_length": 904
+    },
+    {
+      "chunk_id": "637dc84e9c7271fd291dffd9850ef8c0e2106664_merged",
+      "kind": "merged_section",
+      "step_no": null,
+      "section_path": [
+        "Streaming Performance Optimizations",
+        "Additional Optimizations (Future)"
+      ],
+      "header_level": 2,
+      "start_line": 287,
+      "end_line": 326,
+      "has_code": true,
+      "commands": [],
+      "text_length": 1294
+    },
+    {
+      "chunk_id": "587f4a3119d150b51d93356fc4c42a50b559b2bc",
+      "kind": "steps",
+      "step_no": null,
+      "section_path": [
+        "Streaming Performance Optimizations",
+        "Best Practices Applied"
+      ],
+      "header_level": 2,
+      "start_line": 327,
+      "end_line": 338,
+      "has_code": false,
+      "commands": [],
+      "text_length": 470
+    },
+    {
+      "chunk_id": "2c4459c08b67f99ab84c8b0c5674dad200f045d4",
+      "kind": "section",
+      "step_no": null,
+      "section_path": [
+        "Streaming Performance Optimizations",
+        "Summary"
+      ],
+      "header_level": 2,
+      "start_line": 339,
+      "end_line": 350,
+      "has_code": false,
+      "commands": [],
+      "text_length": 614
+    }
+  ]
+}

@@ -1,0 +1,548 @@
+CHUNK ANALYSIS FOR: session_management_apis.md
+====================================================================================================
+Total Chunks: 15
+
+
+====================================================================================================
+CHUNK #1
+====================================================================================================
+Chunk ID: fb01fc25af410294c8624dc40a2003a8137ecfce
+Kind: section
+Lines: 1-2
+Has Code: False
+Header Level: 1
+Section Path: Session Management APIs Implementation
+
+----------------------------------------------------------------------------------------------------
+CONTENT:
+----------------------------------------------------------------------------------------------------
+
+Section: Session Management APIs Implementation
+
+# Session Management APIs Implementation
+
+
+====================================================================================================
+CHUNK #2
+====================================================================================================
+Chunk ID: 6bf5fba11a791fa21f49af3d58b7491d028156db
+Kind: section
+Lines: 3-6
+Has Code: False
+Header Level: 2
+Section Path: Session Management APIs Implementation > Overview
+
+----------------------------------------------------------------------------------------------------
+CONTENT:
+----------------------------------------------------------------------------------------------------
+
+Section: Session Management APIs Implementation > Overview
+
+## Overview
+
+Added comprehensive session management APIs to list active sessions, view conversation history, and delete sessions from ChromaDB.
+
+
+====================================================================================================
+CHUNK #3
+====================================================================================================
+Chunk ID: 9dcea9868f32477c1562c96b586809c69a7254f7_merged
+Kind: merged_section
+Lines: 7-104
+Has Code: True
+Header Level: 2
+Section Path: Session Management APIs Implementation > New Endpoints
+
+----------------------------------------------------------------------------------------------------
+CONTENT:
+----------------------------------------------------------------------------------------------------
+
+Section: Session Management APIs Implementation > New Endpoints
+
+## New Endpoints
+
+Section: Session Management APIs Implementation > New Endpoints > 1. **GET /api/sessions** - List All Sessions
+
+### 1. **GET /api/sessions** - List All Sessions
+
+Lists all active chat sessions with metadata.
+
+**Response:**
+```json
+{
+  "sessions": [
+    {
+      "session_id": "eb7963e5-e113-408d-a257-75a344181867",
+      "message_count": 4,
+      "first_message_time": "2025-12-18T00:22:56.401000",
+      "last_message_time": "2025-12-18T00:23:19.533000"
+    }
+  ],
+  "total": 1
+}
+```
+
+**Features:**
+- Shows all sessions sorted by most recent activity
+- Includes message count per session
+- Shows first and last message timestamps
+
+---
+[CODE BLOCK - Languages: json]
+
+Section: Session Management APIs Implementation > New Endpoints > 2. **GET /api/sessions/{session_id}** - Get Conversation History
+
+### 2. **GET /api/sessions/{session_id}** - Get Conversation History
+
+Retrieves full conversation history for a specific session.
+
+**Parameters:**
+- `session_id` (path): Session ID to retrieve
+- `limit` (query, optional): Max messages to return (default: 100)
+
+**Response:**
+```json
+{
+  "session_id": "eb7963e5-e113-408d-a257-75a344181867",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Hello",
+      "timestamp": "2025-12-18T00:22:56.401000"
+    },
+    {
+      "role": "assistant",
+      "content": "Hi! How can I help you?",
+      "timestamp": "2025-12-18T00:22:57.690000"
+    }
+  ],
+  "total_messages": 2
+}
+```
+
+**Error Responses:**
+- `404`: Session not found or has no messages
+
+---
+[CODE BLOCK - Languages: json]
+
+Section: Session Management APIs Implementation > New Endpoints > 3. **DELETE /api/sessions/{session_id}** - Delete Session
+
+### 3. **DELETE /api/sessions/{session_id}** - Delete Session
+
+Deletes a session and all its messages from ChromaDB.
+
+**Parameters:**
+- `session_id` (path): Session ID to delete
+
+**Response:**
+```json
+{
+  "message": "Session eb7963e5-e113-408d-a257-75a344181867 deleted successfully",
+  "session_id": "eb7963e5-e113-408d-a257-75a344181867",
+  "messages_deleted": 4
+}
+```
+
+**Error Responses:**
+- `404`: Session not found
+- `500`: Failed to delete session
+
+---
+[CODE BLOCK - Languages: json]
+
+Section: Session Management APIs Implementation > New Endpoints > 4. **GET /api/sessions/stats/summary** - Get Statistics
+
+### 4. **GET /api/sessions/stats/summary** - Get Statistics
+
+Returns overall session statistics.
+
+**Response:**
+```json
+{
+  "total_sessions": 5,
+  "total_messages": 42,
+  "average_messages_per_session": 8.4
+}
+```
+
+---
+[CODE BLOCK - Languages: json]
+
+
+====================================================================================================
+CHUNK #4
+====================================================================================================
+Chunk ID: 75b96943e61cee39931a373eae95f3141b1be0ef_merged
+Kind: merged_section
+Lines: 105-108
+Has Code: True
+Header Level: 2
+Section Path: Session Management APIs Implementation > Implementation Details
+
+----------------------------------------------------------------------------------------------------
+CONTENT:
+----------------------------------------------------------------------------------------------------
+
+Section: Session Management APIs Implementation > Implementation Details
+
+## Implementation Details
+
+Section: Session Management APIs Implementation > Implementation Details > Backend Changes
+
+### Backend Changes
+
+
+====================================================================================================
+CHUNK #5
+====================================================================================================
+Chunk ID: 0fa36ca2af380f5de232d1ba84542b061c67132f
+Kind: section
+Lines: 109-116
+Has Code: False
+Header Level: 4
+Section Path: Session Management APIs Implementation > Implementation Details > Backend Changes > [session_service.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/services/session_service.py)
+
+----------------------------------------------------------------------------------------------------
+CONTENT:
+----------------------------------------------------------------------------------------------------
+
+Section: Session Management APIs Implementation > Implementation Details > Backend Changes > [session_service.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/services/session_service.py)
+
+#### [session_service.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/services/session_service.py)
+
+Added `list_sessions()` method:
+- Retrieves all messages from ChromaDB
+- Groups by `session_id`
+- Calculates message count and timestamps
+- Sorts by most recent activity
+
+
+====================================================================================================
+CHUNK #6
+====================================================================================================
+Chunk ID: fab8c3ded383aa84ec31148735f94fe0a5b352d7
+Kind: section
+Lines: 117-124
+Has Code: False
+Header Level: 4
+Section Path: Session Management APIs Implementation > Implementation Details > Backend Changes > [sessions.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/routers/sessions.py) (NEW)
+
+----------------------------------------------------------------------------------------------------
+CONTENT:
+----------------------------------------------------------------------------------------------------
+
+Section: Session Management APIs Implementation > Implementation Details > Backend Changes > [sessions.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/routers/sessions.py) (NEW)
+
+#### [sessions.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/routers/sessions.py) (NEW)
+
+Created new router with 4 endpoints:
+- List all sessions
+- Get specific session history
+- Delete session
+- Get statistics summary
+
+
+====================================================================================================
+CHUNK #7
+====================================================================================================
+Chunk ID: a78053b95e204f7cf16190ef6717d41cb7d32272
+Kind: section
+Lines: 125-134
+Has Code: True
+Header Level: 4
+Section Path: Session Management APIs Implementation > Implementation Details > Backend Changes > [main.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/main.py)
+Commands: from app.routers import sessions, app.include_router(sessions.router)
+
+----------------------------------------------------------------------------------------------------
+CONTENT:
+----------------------------------------------------------------------------------------------------
+
+Section: Session Management APIs Implementation > Implementation Details > Backend Changes > [main.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/main.py)
+
+#### [main.py](file:///Users/mk/Desktop/workspace/ai-stuff/langgraph/ai-app/backend/app/main.py)
+
+Registered sessions router:
+```python
+from app.routers import sessions
+app.include_router(sessions.router)
+```
+
+---
+[CODE BLOCK - Languages: python]
+
+
+====================================================================================================
+CHUNK #8
+====================================================================================================
+Chunk ID: 521f29707e2ab43db4fce581ad772085c9f375ea_merged
+Kind: merged_section
+Lines: 135-168
+Has Code: True
+Header Level: 2
+Section Path: Session Management APIs Implementation > Usage Examples
+
+----------------------------------------------------------------------------------------------------
+CONTENT:
+----------------------------------------------------------------------------------------------------
+
+Section: Session Management APIs Implementation > Usage Examples
+
+## Usage Examples
+
+Section: Session Management APIs Implementation > Usage Examples > List All Sessions
+
+### List All Sessions
+
+```bash
+curl http://localhost:8000/api/sessions
+```
+[CODE BLOCK - Languages: bash]
+
+Section: Session Management APIs Implementation > Usage Examples > Get Session History
+
+### Get Session History
+
+```bash
+curl http://localhost:8000/api/sessions/eb7963e5-e113-408d-a257-75a344181867
+```
+[CODE BLOCK - Languages: bash]
+
+Section: Session Management APIs Implementation > Usage Examples > Get Limited History
+
+### Get Limited History
+
+```bash
+curl http://localhost:8000/api/sessions/eb7963e5-e113-408d-a257-75a344181867?limit=10
+```
+[CODE BLOCK - Languages: bash]
+
+Section: Session Management APIs Implementation > Usage Examples > Delete Session
+
+### Delete Session
+
+```bash
+curl -X DELETE http://localhost:8000/api/sessions/eb7963e5-e113-408d-a257-75a344181867
+```
+[CODE BLOCK - Languages: bash]
+
+Section: Session Management APIs Implementation > Usage Examples > Get Statistics
+
+### Get Statistics
+
+```bash
+curl http://localhost:8000/api/sessions/stats/summary
+```
+
+---
+[CODE BLOCK - Languages: bash]
+
+
+====================================================================================================
+CHUNK #9
+====================================================================================================
+Chunk ID: 36cbcfb98db820e1bedd11058cc5ad7160e7bb41
+Kind: section
+Lines: 169-182
+Has Code: False
+Header Level: 2
+Section Path: Session Management APIs Implementation > API Documentation
+
+----------------------------------------------------------------------------------------------------
+CONTENT:
+----------------------------------------------------------------------------------------------------
+
+Section: Session Management APIs Implementation > API Documentation
+
+## API Documentation
+
+All endpoints are automatically documented in the FastAPI Swagger UI:
+
+**Access at:** http://localhost:8000/docs
+
+The Swagger UI provides:
+- Interactive API testing
+- Request/response schemas
+- Parameter descriptions
+- Example responses
+
+---
+
+
+====================================================================================================
+CHUNK #10
+====================================================================================================
+Chunk ID: aabadc44526b9c5b732e75a715c40d20494cc45d_merged
+Kind: merged_section
+Lines: 183-201
+Has Code: True
+Header Level: 2
+Section Path: Session Management APIs Implementation > Use Cases
+
+----------------------------------------------------------------------------------------------------
+CONTENT:
+----------------------------------------------------------------------------------------------------
+
+Section: Session Management APIs Implementation > Use Cases
+
+## Use Cases
+
+Section: Session Management APIs Implementation > Use Cases > 1. Session Management Dashboard
+
+### 1. Session Management Dashboard
+Build a UI to show all active sessions with their activity levels.
+
+Section: Session Management APIs Implementation > Use Cases > 2. Conversation Export
+
+### 2. Conversation Export
+Retrieve full conversation history for archiving or analysis.
+
+Section: Session Management APIs Implementation > Use Cases > 3. Privacy Compliance
+
+### 3. Privacy Compliance
+Allow users to delete their conversation data on request.
+
+Section: Session Management APIs Implementation > Use Cases > 4. Analytics
+
+### 4. Analytics
+Track session metrics like average conversation length.
+
+Section: Session Management APIs Implementation > Use Cases > 5. Debugging
+
+### 5. Debugging
+View conversation history to debug issues or improve responses.
+
+---
+
+
+====================================================================================================
+CHUNK #11
+====================================================================================================
+Chunk ID: 793042d1f17f77167acf63c4db0fe08cd26d0c43
+Kind: section
+Lines: 202-214
+Has Code: False
+Header Level: 2
+Section Path: Session Management APIs Implementation > Security Considerations
+
+----------------------------------------------------------------------------------------------------
+CONTENT:
+----------------------------------------------------------------------------------------------------
+
+Section: Session Management APIs Implementation > Security Considerations
+
+## Security Considerations
+
+> [!WARNING]
+> **Production Deployment**: Add authentication/authorization before deploying these endpoints to production. Currently, any user can view or delete any session.
+
+**Recommended additions:**
+- JWT authentication
+- User-session ownership validation
+- Rate limiting on delete operations
+- Audit logging for deletions
+
+---
+
+
+====================================================================================================
+CHUNK #12
+====================================================================================================
+Chunk ID: 110f441fc4bef6cd06b7209388ea282fc1275f71
+Kind: section
+Lines: 215-228
+Has Code: False
+Header Level: 2
+Section Path: Session Management APIs Implementation > Performance Notes
+
+----------------------------------------------------------------------------------------------------
+CONTENT:
+----------------------------------------------------------------------------------------------------
+
+Section: Session Management APIs Implementation > Performance Notes
+
+## Performance Notes
+
+- **List Sessions**: O(n) where n = total messages (scans all messages)
+- **Get History**: O(m) where m = messages in session
+- **Delete Session**: O(m) where m = messages in session
+- **Caching**: Session history is cached in memory for performance
+
+For large deployments (>10K sessions), consider:
+- Pagination for list endpoint
+- Indexing on session_id in ChromaDB
+- Background job for session cleanup
+
+---
+
+
+====================================================================================================
+CHUNK #13
+====================================================================================================
+Chunk ID: ce87bc38b49427591cacb70cf63ca29782b961a7
+Kind: narrative
+Lines: 229-238
+Has Code: False
+Header Level: 2
+Section Path: Session Management APIs Implementation > Testing
+
+----------------------------------------------------------------------------------------------------
+CONTENT:
+----------------------------------------------------------------------------------------------------
+
+Section: Session Management APIs Implementation > Testing
+
+## Testing
+
+The backend server auto-reloads with these changes. Test using:
+
+
+====================================================================================================
+CHUNK #14
+====================================================================================================
+Chunk ID: 74a95f7ea94540e09a08d19aac7cfb314db61861
+Kind: steps
+Lines: 229-238
+Has Code: False
+Header Level: 2
+Section Path: Session Management APIs Implementation > Testing
+
+----------------------------------------------------------------------------------------------------
+CONTENT:
+----------------------------------------------------------------------------------------------------
+
+Section: Session Management APIs Implementation > Testing
+
+## Testing
+1. **Browser**: Visit http://localhost:8000/docs
+2. **curl**: Use examples above
+3. **Frontend**: Can integrate these APIs into a session management UI
+
+---
+
+
+====================================================================================================
+CHUNK #15
+====================================================================================================
+Chunk ID: 523854b5a30dda72beab6970ade40e6b0e249908
+Kind: section
+Lines: 239-246
+Has Code: False
+Header Level: 2
+Section Path: Session Management APIs Implementation > Future Enhancements
+
+----------------------------------------------------------------------------------------------------
+CONTENT:
+----------------------------------------------------------------------------------------------------
+
+Section: Session Management APIs Implementation > Future Enhancements
+
+## Future Enhancements
+
+Potential additions:
+- Session search/filtering
+- Export conversation as PDF/JSON
+- Session archiving (soft delete)
+- Session sharing/collaboration
+- Conversation analytics (sentiment, topics)
+
