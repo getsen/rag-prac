@@ -209,16 +209,114 @@ class ConversationContextManager:
         self.conversation_id = self._generate_conversation_id()
         logger.info(f"Conversation history cleared, new id: {self.conversation_id}")
     
-    def get_context_for_rag(self) -> Dict[str, str]:
+    def _extract_key_entities(self, text: str) -> List[str]:
+        """
+        Extract key entities and concepts from text.
+        Simple heuristic: looks for capitalized words and important terms.
+        
+        Args:
+            text: Text to extract entities from
+            
+        Returns:
+            List of key entities/concepts
+        """
+        import re
+        # Extract capitalized phrases (likely proper nouns/entities)
+        entities = re.findall(r'\b[A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*)*\b', text[:500])
+        # Also look for quoted terms
+        quoted = re.findall(r'"([^"]+)"', text[:500])
+        # Combine and deduplicate, keep order
+        combined = entities + quoted
+        seen = set()
+        result = []
+        for item in combined:
+            if item.lower() not in seen and len(item) > 2:
+                seen.add(item.lower())
+                result.append(item)
+        return result[:5]  # Top 5 entities
+    
+    def _compact_context(self, max_recent_turns: int = 4, max_compact_chars: int = 800) -> str:
+        """
+        Compact conversation context by keeping recent turns verbatim
+        and summarizing older turns as key points.
+        
+        This reduces token usage in subsequent queries while maintaining
+        conversation understanding.
+        
+        Args:
+            max_recent_turns: Number of recent turns to keep verbatim
+            max_compact_chars: Maximum characters for older turns summary
+            
+        Returns:
+            Compacted context string
+        """
+        if not self.conversation_history:
+            return ""
+        
+        total_turns = len(self.conversation_history)
+        compact_parts = []
+        
+        # Keep recent N turns verbatim
+        if total_turns <= max_recent_turns:
+            # If we have few turns, return full context
+            return self.get_context_window(include_system=False)
+        
+        recent_start = max(0, total_turns - max_recent_turns)
+        
+        # Add summary of older turns if they exist
+        if recent_start > 0:
+            older_turns = self.conversation_history[:recent_start]
+            
+            # Extract key entities and topics from older turns
+            key_points = []
+            for turn in older_turns[-3:]:  # Look at last 3 older turns for context
+                entities = self._extract_key_entities(turn.content)
+                if entities:
+                    key_points.extend(entities)
+            
+            if key_points:
+                compact_parts.append("[PREVIOUS CONTEXT SUMMARY]")
+                # Deduplicate while preserving order
+                seen = set()
+                unique_points = []
+                for point in key_points:
+                    if point.lower() not in seen:
+                        seen.add(point.lower())
+                        unique_points.append(point)
+                compact_parts.append(f"Key topics: {', '.join(unique_points[:5])}")
+                compact_parts.append("")
+        
+        # Add recent turns verbatim
+        compact_parts.append("[RECENT CONVERSATION]")
+        for turn in self.conversation_history[recent_start:]:
+            role_label = "User" if turn.role == "user" else "Assistant"
+            # Truncate very long responses but keep enough context
+            content = turn.content
+            if len(content) > 500:
+                content = content[:500] + "..."
+            compact_parts.append(f"{role_label}: {content}")
+        
+        return "\n".join(compact_parts)
+    
+    def get_context_for_rag(self, use_compact: bool = True) -> Dict[str, str]:
         """
         Get context formatted specifically for RAG queries.
+        
+        Args:
+            use_compact: If True, uses compacted context for full_context.
+                        If False, returns full uncompacted context.
         
         Returns:
             Dictionary with 'recent_context' and 'full_context'
         """
+        if use_compact:
+            full_context = self._compact_context()
+        else:
+            full_context = self.get_context_window(include_system=False)
+        
         return {
             "recent_context": self.get_recent_context(num_turns=3),
-            "full_context": self.get_context_window(include_system=False),
+            "full_context": full_context,
             "conversation_id": self.conversation_id,
             "turn_count": len(self.conversation_history),
         }

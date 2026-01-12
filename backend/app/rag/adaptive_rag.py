@@ -55,8 +55,8 @@ class AdaptiveRAG:
         
         # Initialize re-ranker for better document ranking
         try:
-            self.reranker = CrossEncoder('cross-encoder/mmarco-MiniLMv2-L12-H384')
-            logger.info("Re-ranker initialized: cross-encoder/mmarco-MiniLMv2-L12-H384")
+            self.reranker = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-12-v2')
+            logger.info("Re-ranker initialized: cross-encoder/ms-marco-MiniLM-L-12-v2")
         except Exception as e:
             logger.warning(f"Could not load re-ranker: {e}. Proceeding without re-ranking.")
             self.reranker = None

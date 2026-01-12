@@ -353,23 +353,25 @@ export default function App() {
                     <div
                       style={{ marginTop: 10, color: "#6b7280", fontSize: 12 }}
                     >
-                      <div
-                        style={{
-                          fontWeight: 600,
-                          marginBottom: 6,
-                          cursor: "pointer",
-                          listStyle: "none",
-                        }}
-                      >
-                        Sources
-                      </div>
-                      <ul style={{ margin: 0, paddingLeft: 18 }}>
-                        {m.sources.map((s: any, idx: number) => (
-                          <li key={idx}>
-                            {s.source} — {s.section}
-                          </li>
-                        ))}
-                      </ul>
+                      <details>
+                        <summary
+                          style={{
+                            fontWeight: 600,
+                            marginBottom: 6,
+                            cursor: "pointer",
+                            listStyle: "none",
+                          }}
+                        >
+                          Sources
+                        </summary>
+                        <ul style={{ margin: 0, paddingLeft: 18 }}>
+                          {m.sources.map((s: any, idx: number) => (
+                            <li key={idx}>
+                              {s.source} — {s.section}
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
                     </div>
                   ) : null}
                 </div>

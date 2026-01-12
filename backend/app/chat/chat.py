@@ -158,7 +158,7 @@ class ChatService:
 
     def process_chat_stream(self, req: ChatRequest) -> StreamingResponse:
         """Process a chat request and return streaming response with adaptive RAG."""
-        
+        logger.info("--------------------------------------------------------------------------")
         logger.info(f"Processing chat request with conversation_id: {req.conversation_id}")
         
         # Get or create conversation context
