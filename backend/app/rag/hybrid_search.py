@@ -1,7 +1,8 @@
 import logging
 import re
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Set
 from dataclasses import dataclass
+from collections import Counter
 
 logger = logging.getLogger(__name__)
 
@@ -16,153 +17,175 @@ class SearchQuery:
 
 
 class QueryDecomposer:
-    """Decomposes user queries into multiple search strategies."""
+    """
+    Decomposes user queries into multiple search strategies using generic NLP techniques.
     
-    # Patterns for detecting query intents
-    COMPREHENSIVE_PATTERNS = [
-        r'\ball\b',
-        r'\blist\b',
-        r'\bshow\b',
-        r'\benumerate\b',
-        r'\bwhat are\b',
-        r'\ball.*types\b',
-        r'\ball.*kinds\b',
-    ]
+    Completely data-agnostic approach:
+    1. Extracts key terms and phrases from the query dynamically
+    2. Removes stop words to identify meaningful concepts
+    3. Creates semantic variations at different levels of specificity
+    4. Generates sub-queries by combining terms in different ways
     
-    SPECIFIC_PATTERNS = [
-        r'\bfind\b',
-        r'\bget\b',
-        r'\bspecific\b',
-        r'\bparticular\b',
-        r'\bhow to\b',
-        r'\bsteps\b',
-    ]
+    Works with ANY domain/document type without hardcoded patterns or concepts.
+    """
     
-    # Synonym maps for query expansion
-    SYNONYMS = {
-        'endpoint': ['route', 'service', 'api', 'operation', 'path', 'url'],
-        'method': ['verb', 'http method', 'operation type', 'request method'],
-        'api': ['endpoint', 'service', 'interface', 'rest', 'web service'],
-        'delete': ['remove', 'destroy', 'eliminate', 'drop'],
-        'create': ['add', 'new', 'initialize', 'make', 'generate'],
-        'get': ['retrieve', 'fetch', 'obtain', 'read'],
-        'update': ['modify', 'change', 'edit', 'patch', 'put'],
-        'list': ['all', 'enumerate', 'show', 'display', 'retrieve all'],
-        'configuration': ['settings', 'config', 'setup', 'options', 'parameters'],
-        'database': ['db', 'storage', 'persistence', 'data store'],
-        'authentication': ['auth', 'login', 'credentials', 'security', 'token'],
-        'report': ['analytics', 'metrics', 'statistics', 'data', 'summary'],
+    # Generic stop words (language-level, not domain-specific)
+    STOP_WORDS = {
+        'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
+        'of', 'with', 'by', 'from', 'up', 'about', 'into', 'through', 'during',
+        'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had',
+        'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might',
+        'must', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she',
+        'it', 'we', 'they', 'what', 'which', 'who', 'when', 'where', 'why', 'how',
+        'all', 'each', 'every', 'both', 'few', 'more', 'most', 'other', 'some',
+        'such', 'no', 'nor', 'not', 'only', 'same', 'so', 'than', 'too', 'very',
+        'just', 'my', 'me', 'your', 'him', 'her', 'its', 'our', 'their',
     }
     
     @staticmethod
+    def _tokenize(text: str) -> List[str]:
+        """
+        Tokenize text into words, preserving quoted phrases.
+        
+        Example: 'list all api with "authentication": "Bearer token"'
+        Returns: ['list', 'all', 'api', 'with', 'authentication', 'Bearer token']
+        """
+        tokens = []
+        # Extract quoted phrases first
+        quoted_pattern = r'"([^"]+)"'
+        quoted_phrases = re.findall(quoted_pattern, text)
+        tokens.extend(quoted_phrases)
+        
+        # Remove quoted content and split remaining text
+        text_without_quotes = re.sub(quoted_pattern, '', text)
+        # Split on non-word characters but keep alphanumeric and underscores
+        words = re.findall(r'\b[\w]+\b', text_without_quotes.lower())
+        tokens.extend(words)
+        
+        return tokens
+    
+    @staticmethod
+    def _extract_key_terms(query: str) -> List[str]:
+        """
+        Extract meaningful key terms by removing stop words.
+        
+        Example: "list all api with authentication Bearer token"
+        Returns: ['api', 'authentication', 'bearer', 'token']
+        """
+        tokens = QueryDecomposer._tokenize(query)
+        # Filter out stop words
+        key_terms = [t for t in tokens if t.lower() not in QueryDecomposer.STOP_WORDS and len(t) > 1]
+        return list(dict.fromkeys(key_terms))  # Remove duplicates while preserving order
+    
+    @staticmethod
     def is_comprehensive_query(query: str) -> bool:
-        """Detect if query is asking for comprehensive results."""
+        """Detect if query asks for comprehensive/multiple results."""
         query_lower = query.lower()
-        for pattern in QueryDecomposer.COMPREHENSIVE_PATTERNS:
-            if re.search(pattern, query_lower):
-                return True
-        return False
+        comprehensive_indicators = [
+            r'\ball\b', r'\blist\b', r'\bshow\b', r'\benumerate\b',
+            r'\bwhat are\b', r'\bfind all\b', r'\bget all\b'
+        ]
+        return any(re.search(pattern, query_lower) for pattern in comprehensive_indicators)
     
     @staticmethod
     def detect_intent(query: str) -> str:
         """Detect the intent of the query."""
         query_lower = query.lower()
         
-        if re.search(r'\bhow to\b|\bsteps\b', query_lower):
+        if re.search(r'\bhow to\b|\bsteps\b|\bprocedure', query_lower):
             return 'procedural'
-        elif re.search(r'\bwhy\b|\bwhat is\b|\bexplain\b', query_lower):
-            return 'explanatory'
-        elif re.search(r'\ball\b|\blist\b|\bshow\b', query_lower):
+        elif re.search(r'\ball\b|\blist\b|\bshow\b|\benumerate\b', query_lower):
             return 'comprehensive'
+        elif re.search(r'\bwhy\b|\bexplain\b', query_lower):
+            return 'explanatory'
+        elif re.search(r'\bwhat (is|are)\b', query_lower):
+            return 'explanatory'
         elif re.search(r'\bfind\b|\bget\b|\bfetch\b', query_lower):
             return 'specific'
         else:
             return 'general'
     
     @staticmethod
-    def expand_with_synonyms(query: str) -> List[str]:
-        """Expand query with synonyms."""
-        expanded = [query]
-        query_lower = query.lower()
+    def _generate_sub_queries(key_terms: List[str]) -> List[str]:
+        """
+        Generate sub-queries from key terms using different combination strategies.
         
-        for word, synonyms in QueryDecomposer.SYNONYMS.items():
-            if word in query_lower:
-                # Create variants with each synonym
-                for synonym in synonyms:
-                    variant = re.sub(r'\b' + word + r'\b', synonym, query_lower, flags=re.IGNORECASE)
-                    if variant not in expanded and variant != query_lower:
-                        expanded.append(variant)
+        Strategies:
+        1. Individual terms
+        2. Pairs of adjacent terms
+        3. All terms together
+        4. Non-adjacent pairs
+        5. 3-term sequences
         
-        return expanded[:5]  # Limit to 5 variants to avoid explosion
+        Example: ['api', 'authentication', 'bearer']
+        Returns: ['api', 'authentication', 'bearer', 'api authentication', 
+                  'authentication bearer', 'api authentication bearer', ...]
+        """
+        if not key_terms:
+            return []
+        
+        sub_queries = []
+        
+        # Strategy 1: Individual terms
+        sub_queries.extend(key_terms)
+        
+        # Strategy 2: Pairs of adjacent terms
+        for i in range(len(key_terms) - 1):
+            pair = f"{key_terms[i]} {key_terms[i + 1]}"
+            sub_queries.append(pair)
+        
+        # Strategy 3: All terms together (if more than 1 term)
+        if len(key_terms) > 1:
+            all_terms = ' '.join(key_terms)
+            sub_queries.append(all_terms)
+        
+        # Strategy 4: Non-adjacent pairs (skip one)
+        for i in range(len(key_terms) - 2):
+            skip_pair = f"{key_terms[i]} {key_terms[i + 2]}"
+            sub_queries.append(skip_pair)
+        
+        # Strategy 5: 3-term sequences
+        for i in range(len(key_terms) - 2):
+            triplet = f"{key_terms[i]} {key_terms[i + 1]} {key_terms[i + 2]}"
+            sub_queries.append(triplet)
+        
+        return sub_queries
     
-    @staticmethod
-    def decompose_comprehensive_query(query: str) -> List[str]:
+    @classmethod
+    def decompose_comprehensive_query(cls, query: str) -> List[str]:
         """
         Decompose comprehensive queries into focused sub-queries.
         
-        Example: "list all api endpoints with get method"
-        Returns: [
-            "api endpoints with GET method",
-            "GET endpoints",
-            "api routes",
-            "services",
-        ]
+        Generic approach:
+        1. Extract key terms (non-stop words)
+        2. Generate combinations at different specificity levels
+        3. Include original query
+        4. Remove duplicates and limit to 8
+        
+        Example: "list all api with authentication Bearer token"
+        Returns: ['list all api with authentication Bearer token', 'api', 'authentication',
+                  'bearer', 'token', 'api authentication', 'authentication bearer', ...]
         """
         sub_queries = [query]  # Always include original
-        query_lower = query.lower()
         
-        # Extract key concepts
-        concepts = []
-        if re.search(r'\bendpoint', query_lower):
-            concepts.append('endpoint')
-        if re.search(r'\bapi', query_lower):  # Match 'api' or 'apis'
-            concepts.append('api')
-        if re.search(r'\bmethod|HTTP', query_lower):
-            concepts.append('method')
-        if re.search(r'\bget|post|delete|put|patch', query_lower):
-            http_method = re.search(r'\b(get|post|delete|put|patch)\b', query_lower, re.IGNORECASE)
-            if http_method:
-                concepts.append(http_method.group(1).upper())
-        if re.search(r'\bconfiguration|config|settings', query_lower):
-            concepts.append('configuration')
-        if re.search(r'\breport|analytics', query_lower):
-            concepts.append('analytics')
-        if re.search(r'\bauthentication|auth|bearer|token|security', query_lower):
-            concepts.append('authentication')
+        # Extract key terms dynamically
+        key_terms = cls._extract_key_terms(query)
         
-        # Create focused sub-queries from concepts
-        for concept in concepts:
-            sub_queries.append(f"{concept}")
-            
-            # Pair complementary concepts
-            if 'endpoint' in concepts and 'method' in concepts:
-                sub_queries.append("endpoint methods")
-                sub_queries.append("HTTP endpoints")
-            
-            if 'api' in concepts and concept != 'api':
-                sub_queries.append(f"{concept} API")
+        # Generate multiple variations
+        if key_terms:
+            generated = cls._generate_sub_queries(key_terms)
+            sub_queries.extend(generated)
         
-        # Add broad searches for comprehensive queries
-        if 'endpoint' in concepts or 'api' in concepts:
-            sub_queries.append("endpoints")
-            sub_queries.append("services")
-            sub_queries.append("operations")
+        # Remove duplicates (case-insensitive) while preserving order
+        seen = set()
+        unique_queries = []
+        for q in sub_queries:
+            q_lower = q.lower()
+            if q_lower not in seen:
+                seen.add(q_lower)
+                unique_queries.append(q)
         
-        # Explicitly add api if it's a core concept
-        if 'api' in concepts and 'api' not in sub_queries:
-            sub_queries.append("api")
-        
-        # Special handling for authentication queries
-        if 'authentication' in concepts:
-            sub_queries.append("authentication")
-            sub_queries.append("Bearer token")
-            sub_queries.append("API security")
-            if 'api' in concepts:
-                sub_queries.append("authenticated APIs")
-            sub_queries.append("services")
-            sub_queries.append("operations")
-        
-        return list(dict.fromkeys(sub_queries))[:8]  # Remove duplicates, limit to 8
+        return unique_queries[:8]  # Limit to 8 queries
     
     @classmethod
     def decompose(cls, query: str) -> SearchQuery:
@@ -184,11 +207,15 @@ class QueryDecomposer:
         intent = cls.detect_intent(clean_query)
         is_comprehensive = cls.is_comprehensive_query(clean_query)
         
-        if is_comprehensive:
+        # Use comprehensive decomposition for comprehensive, procedural, and explanatory queries
+        if is_comprehensive or intent in ['comprehensive', 'procedural', 'explanatory']:
             decomposed = cls.decompose_comprehensive_query(clean_query)
         else:
-            # For specific queries, use synonym expansion
-            decomposed = cls.expand_with_synonyms(clean_query)
+            # For specific queries, use key term extraction
+            key_terms = cls._extract_key_terms(clean_query)
+            decomposed = cls._generate_sub_queries(key_terms)
+            if not decomposed:  # Fallback to original if no key terms extracted
+                decomposed = [clean_query]
         
         return SearchQuery(
             original=clean_query,
@@ -330,5 +357,4 @@ class HybridSearchStrategy:
             'is_comprehensive': search_query.is_comprehensive,
             'sub_queries': search_query.decomposed,
             'should_expand': search_query.is_comprehensive,
-            'should_use_bm25': 'method' in query.lower() or 'get' in query.lower() or 'post' in query.lower(),
         }
