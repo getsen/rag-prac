@@ -256,12 +256,23 @@ class AdaptiveRAG:
             queries_to_search = [query]
             
             # If we have conversation context, extract key terms and create search variations
-            if full_context and '[CONVERSATION CONTEXT]' in full_context:
+            # Handle both old format '[CONVERSATION CONTEXT]' and new compacted formats '[PREVIOUS CONTEXT SUMMARY]', '[RECENT CONVERSATION]'
+            if full_context and ('[CONVERSATION CONTEXT]' in full_context or '[PREVIOUS CONTEXT SUMMARY]' in full_context):
                 # Extract conversation context to find key topics
-                parts = full_context.split('[CURRENT QUERY]')
-                if len(parts) == 2:
-                    context_part = parts[0]
-                    
+                context_part = ""
+                
+                # Try old format first: split by '[CURRENT QUERY]'
+                if '[CURRENT QUERY]' in full_context:
+                    parts = full_context.split('[CURRENT QUERY]')
+                    if len(parts) == 2:
+                        context_part = parts[0]
+                # Try new format: split by '[RECENT CONVERSATION]'
+                elif '[RECENT CONVERSATION]' in full_context:
+                    parts = full_context.split('[RECENT CONVERSATION]')
+                    if len(parts) >= 1:
+                        context_part = parts[0]
+                
+                if context_part:
                     # Try to extract key terms from context (look for previous topics)
                     # For example, if context mentions "linux", add that to searches
                     context_lower = context_part.lower()
@@ -482,8 +493,11 @@ class AdaptiveRAG:
         try:
             final_state = await self.graph.ainvoke(initial_state)
             
+            # Ensure we have a response - fall back to llm_response if final_response wasn't set
+            final_response = final_state.get('final_response', '') or final_state.get('llm_response', '')
+            
             return {
-                "response": final_state.get('final_response', ''),
+                "response": final_response,
                 "sources": final_state.get('sources', []),
                 "attempts": final_state.get('attempts', 1),
                 "query_analysis": final_state.get('query_analysis', {}),
@@ -539,8 +553,11 @@ class AdaptiveRAG:
         try:
             final_state = self.graph.invoke(initial_state)
             
+            # Ensure we have a response - fall back to llm_response if final_response wasn't set
+            final_response = final_state.get('final_response', '') or final_state.get('llm_response', '')
+            
             return {
-                "response": final_state.get('final_response', ''),
+                "response": final_response,
                 "sources": final_state.get('sources', []),
                 "attempts": final_state.get('attempts', 1),
                 "query_analysis": final_state.get('query_analysis', {}),

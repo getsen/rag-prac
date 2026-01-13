@@ -195,7 +195,17 @@ class ChatService:
                 response_text = result.get('response', '')
                 sources = result.get('sources', [])
                 
-                if not response_text or 'Error' in response_text:
+                # Check for failure only if response is empty or explicitly indicates failure
+                failure_indicators = [
+                    'could not find',
+                    'not found',
+                    'Error processing',
+                    'I could not find',
+                ]
+                is_failure = (not response_text or 
+                             any(indicator.lower() in response_text.lower() for indicator in failure_indicators))
+                
+                if is_failure:
                     logger.warning(f"Adaptive RAG failed to retrieve relevant content for: {req.message}")
                     yield f"data: {json.dumps({'type':'meta','sources': [], 'conversation_id': conv_id}, ensure_ascii=False)}\n\n"
                     yield f"data: {json.dumps({'type':'final','text': 'NOT_FOUND: Not covered by the indexed documents.'}, ensure_ascii=False)}\n\n"
