@@ -115,7 +115,7 @@ class QueryDecomposer:
         concepts = []
         if re.search(r'\bendpoint', query_lower):
             concepts.append('endpoint')
-        if re.search(r'\bapi\b', query_lower):
+        if re.search(r'\bapi', query_lower):  # Match 'api' or 'apis'
             concepts.append('api')
         if re.search(r'\bmethod|HTTP', query_lower):
             concepts.append('method')
@@ -127,6 +127,8 @@ class QueryDecomposer:
             concepts.append('configuration')
         if re.search(r'\breport|analytics', query_lower):
             concepts.append('analytics')
+        if re.search(r'\bauthentication|auth|bearer|token|security', query_lower):
+            concepts.append('authentication')
         
         # Create focused sub-queries from concepts
         for concept in concepts:
@@ -143,6 +145,20 @@ class QueryDecomposer:
         # Add broad searches for comprehensive queries
         if 'endpoint' in concepts or 'api' in concepts:
             sub_queries.append("endpoints")
+            sub_queries.append("services")
+            sub_queries.append("operations")
+        
+        # Explicitly add api if it's a core concept
+        if 'api' in concepts and 'api' not in sub_queries:
+            sub_queries.append("api")
+        
+        # Special handling for authentication queries
+        if 'authentication' in concepts:
+            sub_queries.append("authentication")
+            sub_queries.append("Bearer token")
+            sub_queries.append("API security")
+            if 'api' in concepts:
+                sub_queries.append("authenticated APIs")
             sub_queries.append("services")
             sub_queries.append("operations")
         
