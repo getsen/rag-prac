@@ -1,0 +1,142 @@
+{
+  "endpoints": [
+    {
+      "path": "/api/reports/analytics",
+      "method": "GET",
+      "description": "Fetch analytics and performance metrics",
+      "authentication": "Bearer token",
+      "parameters": {
+        "start_date": {
+          "type": "string",
+          "format": "date-time",
+          "required": true,
+          "description": "Start date for analytics period"
+        },
+        "end_date": {
+          "type": "string",
+          "format": "date-time",
+          "required": true,
+          "description": "End date for analytics period"
+        },
+        "metric_type": {
+          "type": "string",
+          "enum": ["views", "clicks", "conversions", "revenue"],
+          "required": false,
+          "description": "Type of metric to retrieve"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "metrics": [
+            {
+              "date": "2026-01-13",
+              "views": 5420,
+              "clicks": 1250,
+              "conversions": 85,
+              "revenue": 1275.50
+            }
+          ],
+          "period": {
+            "start": "2026-01-13T00:00:00Z",
+            "end": "2026-01-13T23:59:59Z"
+          },
+          "total": 1
+        }
+      }
+    },
+    {
+      "path": "/api/reports/{report_id}",
+      "method": "GET",
+      "description": "Get details of a specific report",
+      "authentication": "Bearer token",
+      "parameters": {
+        "report_id": {
+          "type": "string",
+          "required": true,
+          "description": "Unique identifier for the report"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "report_789",
+          "name": "Monthly Performance",
+          "created_at": "2026-01-13T10:30:00Z",
+          "created_by": "user_456",
+          "data": {
+            "summary": {
+              "total_views": 145820,
+              "total_clicks": 28945,
+              "conversion_rate": 0.089
+            },
+            "breakdown": {
+              "by_device": {
+                "desktop": 65,
+                "mobile": 30,
+                "tablet": 5
+              },
+              "by_region": {
+                "north_america": 45,
+                "europe": 35,
+                "asia": 20
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "path": "/api/reports",
+      "method": "POST",
+      "description": "Create a new custom report",
+      "authentication": "Bearer token",
+      "request": {
+        "name": "string",
+        "metrics": ["views", "clicks", "conversions"],
+        "filters": {
+          "date_range": {
+            "start": "2026-01-01",
+            "end": "2026-01-31"
+          },
+          "regions": ["north_america", "europe"],
+          "devices": ["desktop", "mobile"]
+        },
+        "schedule": "daily"
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "id": "report_new_001",
+          "name": "Custom Monthly Report",
+          "status": "processing",
+          "created_at": "2026-01-13T12:00:00Z",
+          "scheduled_delivery": "daily"
+        }
+      }
+    },
+    {
+      "path": "/api/reports/{report_id}",
+      "method": "DELETE",
+      "description": "Delete a report",
+      "authentication": "Bearer token",
+      "parameters": {
+        "report_id": {
+          "type": "string",
+          "required": true,
+          "description": "ID of report to delete"
+        }
+      },
+      "response": {
+        "status": 204,
+        "body": {}
+      }
+    }
+  ],
+  "base_url": "https://api.example.com",
+  "version": "v2",
+  "rate_limit": {
+    "requests_per_minute": 30,
+    "burst_size": 50
+  }
+}

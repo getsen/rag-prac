@@ -1,0 +1,109 @@
+{
+  "teams": [
+    {
+      "id": "team_001",
+      "name": "Backend Engineering",
+      "description": "Backend services and API development",
+      "members": [
+        {
+          "id": "user_101",
+          "name": "Alice Johnson",
+          "email": "alice@example.com",
+          "role": "Engineering Lead",
+          "skills": ["Python", "PostgreSQL", "Kubernetes"],
+          "availability": {
+            "timezone": "UTC",
+            "working_hours": {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          }
+        },
+        {
+          "id": "user_102",
+          "name": "Bob Smith",
+          "email": "bob@example.com",
+          "role": "Senior Engineer",
+          "skills": ["Go", "Docker", "AWS"],
+          "availability": {
+            "timezone": "PST",
+            "working_hours": {
+              "start": "08:00",
+              "end": "16:00"
+            }
+          }
+        }
+      ],
+      "projects": [
+        {
+          "id": "proj_001",
+          "name": "User Service",
+          "status": "In Progress",
+          "repository": "https://github.com/company/user-service",
+          "deployments": {
+            "staging": {
+              "url": "https://staging-users.example.com",
+              "last_deployed": "2026-01-12T15:30:00Z",
+              "version": "v2.1.0"
+            },
+            "production": {
+              "url": "https://api.example.com",
+              "last_deployed": "2026-01-10T10:00:00Z",
+              "version": "v2.0.5"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "team_002",
+      "name": "Frontend Engineering",
+      "description": "Frontend applications and UI components",
+      "members": [
+        {
+          "id": "user_201",
+          "name": "Carol Davis",
+          "email": "carol@example.com",
+          "role": "UI Lead",
+          "skills": ["React", "TypeScript", "CSS"],
+          "availability": {
+            "timezone": "CET",
+            "working_hours": {
+              "start": "10:00",
+              "end": "18:00"
+            }
+          }
+        }
+      ],
+      "projects": [
+        {
+          "id": "proj_002",
+          "name": "Dashboard",
+          "status": "Active",
+          "repository": "https://github.com/company/dashboard",
+          "deployments": {
+            "staging": {
+              "url": "https://staging-dashboard.example.com",
+              "last_deployed": "2026-01-13T09:00:00Z",
+              "version": "v1.5.0"
+            },
+            "production": {
+              "url": "https://dashboard.example.com",
+              "last_deployed": "2026-01-12T14:30:00Z",
+              "version": "v1.4.2"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "organization": {
+    "name": "TechCorp",
+    "founded": "2020",
+    "headquarters": {
+      "city": "San Francisco",
+      "country": "USA"
+    },
+    "total_employees": 150
+  }
+}

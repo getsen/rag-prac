@@ -9,6 +9,7 @@ import chromadb
 from sentence_transformers import SentenceTransformer
 
 from app.chunk.chunk import chunks_from_file
+from app.chunk.chunk_json import chunks_from_json_file
 from app.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -94,10 +95,11 @@ class DocumentIngester:
         self.ensure_collections()
         
         md_files = sorted(glob.glob(os.path.join(docs_folder, "*.md")))
+        json_files = sorted(glob.glob(os.path.join(docs_folder, "*.json")))
         logger.info(f"Found {len(md_files)} markdown files")
         
-        if not md_files:
-            logger.warning(f"No markdown files found in {docs_folder}")
+        if not md_files and not json_files:
+            logger.warning(f"No files found in {docs_folder}")
             return {
                 "docs_found": 0,
                 "docs_ingested": 0,
@@ -105,11 +107,13 @@ class DocumentIngester:
                 "chunks_upserted": 0,
             }
         
+        all_files = md_files + json_files
+
         docs_ingested = 0
         docs_skipped = 0
         chunks_upserted = 0
         
-        for path in md_files:
+        for path in all_files:
             try:
                 doc_id = self.doc_id_from_path(path)
                 doc_hash = self.file_sha256(path)
@@ -123,8 +127,12 @@ class DocumentIngester:
                 if force_reindex_changed:
                     self.delete_existing_doc_chunks(doc_id)
                 
-                # Chunk the document
-                chunks = chunks_from_file(path, procedure_aware=True)
+                if path.endswith(".md"):
+                    # Chunk the markdown document
+                    chunks = chunks_from_file(path, procedure_aware=True)
+                else:
+                    # Chunk the JSON document (procedure_aware not applicable for JSON)
+                    chunks = chunks_from_json_file(path)
                 
                 # Build records for ChromaDB
                 ids: List[str] = []

@@ -1,0 +1,85 @@
+{
+  "procedures": [
+    {
+      "id": "proc_001",
+      "name": "User Onboarding",
+      "description": "Complete onboarding process for new users",
+      "estimated_duration_minutes": 15,
+      "steps": [
+        {
+          "step_number": 1,
+          "title": "Create Account",
+          "description": "Create user account with email and password",
+          "commands": [
+            "curl -X POST https://api.example.com/users -H 'Content-Type: application/json' -d '{\"email\": \"user@example.com\"}'",
+            "store_user_id_from_response"
+          ],
+          "validations": ["user_id_not_empty", "email_confirmed"]
+        },
+        {
+          "step_number": 2,
+          "title": "Configure Profile",
+          "description": "Set up user profile information",
+          "commands": [
+            "curl -X PUT https://api.example.com/users/{user_id}/profile -d '{\"name\": \"John Doe\"}'"
+          ],
+          "validations": ["profile_name_set"]
+        },
+        {
+          "step_number": 3,
+          "title": "Create First Project",
+          "description": "Initialize user's first project",
+          "commands": [
+            "curl -X POST https://api.example.com/projects -d '{\"name\": \"My Project\"}'"
+          ],
+          "validations": ["project_created"]
+        }
+      ],
+      "troubleshooting": {
+        "common_issues": [
+          {
+            "issue": "Email already exists",
+            "solution": "Use different email or recovery flow"
+          },
+          {
+            "issue": "Profile setup fails",
+            "solution": "Check network connectivity and retry"
+          }
+        ]
+      }
+    },
+    {
+      "id": "proc_002",
+      "name": "Database Migration",
+      "description": "Migrate data between database instances",
+      "estimated_duration_minutes": 45,
+      "steps": [
+        {
+          "step_number": 1,
+          "title": "Backup Source Database",
+          "description": "Create backup of source database",
+          "commands": [
+            "pg_dump -h source-db.example.com -U admin main_db > backup.sql"
+          ],
+          "validations": ["backup_file_exists", "backup_size_gt_1mb"]
+        },
+        {
+          "step_number": 2,
+          "title": "Validate Backup Integrity",
+          "description": "Ensure backup is valid and complete",
+          "commands": [
+            "head -100 backup.sql",
+            "tail -100 backup.sql",
+            "wc -l backup.sql"
+          ],
+          "validations": ["backup_header_valid", "backup_footer_valid"]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "last_updated": "2026-01-13T08:00:00Z",
+    "version": "1.0.0",
+    "author": "DevOps Team"
+  }
+}

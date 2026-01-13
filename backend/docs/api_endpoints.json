@@ -1,0 +1,68 @@
+{
+  "endpoints": [
+    {
+      "path": "/api/sessions",
+      "method": "GET",
+      "description": "List all active sessions",
+      "authentication": "Bearer token",
+      "response": {
+        "status": 200,
+        "body": {
+          "sessions": [
+            {
+              "id": "session_123",
+              "user_id": "user_456",
+              "created_at": "2026-01-13T08:00:00Z",
+              "expires_at": "2026-01-14T08:00:00Z"
+            }
+          ],
+          "total": 1
+        }
+      }
+    },
+    {
+      "path": "/api/sessions/{id}",
+      "method": "DELETE",
+      "description": "Delete a specific session",
+      "authentication": "Bearer token",
+      "parameters": {
+        "id": {
+          "type": "string",
+          "required": true,
+          "description": "Session ID to delete"
+        }
+      },
+      "response": {
+        "status": 204,
+        "body": {}
+      }
+    },
+    {
+      "path": "/api/users",
+      "method": "POST",
+      "description": "Create a new user",
+      "authentication": "Bearer token",
+      "request": {
+        "username": "string",
+        "email": "string",
+        "password": "string",
+        "roles": ["admin", "user"]
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "id": "user_123",
+          "username": "john_doe",
+          "email": "john@example.com",
+          "created_at": "2026-01-13T08:00:00Z"
+        }
+      }
+    }
+  ],
+  "base_url": "https://api.example.com",
+  "version": "v1",
+  "rate_limit": {
+    "requests_per_minute": 60,
+    "burst_size": 100
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "database": {
+    "primary": {
+      "host": "db.example.com",
+      "port": 5432,
+      "name": "main_db",
+      "credentials": {
+        "username": "admin",
+        "password_env": "DB_PASSWORD"
+      },
+      "pool": {
+        "min_connections": 5,
+        "max_connections": 20,
+        "timeout_seconds": 30
+      }
+    },
+    "replica": {
+      "host": "db-replica.example.com",
+      "port": 5432,
+      "name": "main_db",
+      "read_only": true,
+      "credentials": {
+        "username": "read_user",
+        "password_env": "DB_READ_PASSWORD"
+      }
+    }
+  },
+  "redis": {
+    "host": "redis.example.com",
+    "port": 6379,
+    "db": 0,
+    "ttl_seconds": 3600,
+    "cluster": {
+      "enabled": true,
+      "nodes": [
+        {
+          "host": "redis-1.example.com",
+          "port": 6379
+        },
+        {
+          "host": "redis-2.example.com",
+          "port": 6379
+        }
+      ]
+    }
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "json",
+    "outputs": [
+      {
+        "type": "file",
+        "path": "/var/log/app.log",
+        "rotation": {
+          "max_size_mb": 100,
+          "max_days": 30
+        }
+      },
+      {
+        "type": "stdout",
+        "enabled": true
+      }
+    ]
+  },
+  "features": {
+    "session_management": {
+      "enabled": true,
+      "timeout_minutes": 60,
+      "refresh_token_expiry_days": 7
+    },
+    "analytics": {
+      "enabled": true,
+      "sampling_rate": 0.1,
+      "destinations": ["datadog", "cloudwatch"]
+    }
+  }
+}
