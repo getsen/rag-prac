@@ -68,14 +68,60 @@ class QueryDecomposer:
     def _extract_key_terms(query: str) -> List[str]:
         """
         Extract meaningful key terms by removing stop words.
+        Preserves multi-word terms based on generic linguistic patterns.
         
         Example: "list all api with authentication Bearer token"
-        Returns: ['api', 'authentication', 'bearer', 'token']
+        Returns: ['api', 'authentication', 'bearer token']
+        
+        Uses completely generic heuristics:
+        1. Quoted phrases are always preserved
+        2. Capitalization pattern (Proper Noun + lowercase): "Bearer token", "OAuth provider"
         """
         tokens = QueryDecomposer._tokenize(query)
         # Filter out stop words
         key_terms = [t for t in tokens if t.lower() not in QueryDecomposer.STOP_WORDS and len(t) > 1]
-        return list(dict.fromkeys(key_terms))  # Remove duplicates while preserving order
+        
+        # Deduplicate while preserving order
+        key_terms = list(dict.fromkeys(key_terms))
+        
+        # Post-process: merge adjacent terms that are likely compound nouns/phrases
+        # Uses purely linguistic/syntactic heuristics - no domain assumptions
+        merged_terms = []
+        i = 0
+        while i < len(key_terms):
+            term = key_terms[i]
+            
+            # Check if next term should be merged with current term
+            if i < len(key_terms) - 1:
+                next_term = key_terms[i + 1]
+                combined = f"{term} {next_term}"
+                
+                # Check if phrase appears in original query as cohesive unit (quoted or adjacent)
+                phrase_in_query = (
+                    f'"{combined}"' in query or
+                    f"'{combined}'" in query or
+                    (f"{term} {next_term}" in query and 
+                     # Ensure they're not separated by stop words
+                     query.lower().index(term.lower()) + len(term) < query.lower().index(next_term.lower()))
+                )
+                
+                # Generic linguistic heuristic: proper noun modifier pattern
+                # If first word is capitalized and second is lowercase, they likely form a compound
+                # Examples: "Bearer token", "OAuth provider", "HTTP status", "REST API"
+                is_capitalization_compound = (
+                    phrase_in_query or
+                    (term[0].isupper() and next_term[0].islower() and len(term) <= 15)
+                )
+                
+                if is_capitalization_compound:
+                    merged_terms.append(combined)
+                    i += 2
+                    continue
+            
+            merged_terms.append(term)
+            i += 1
+        
+        return merged_terms
     
     @staticmethod
     def is_comprehensive_query(query: str) -> bool:
@@ -110,34 +156,42 @@ class QueryDecomposer:
         """
         Generate sub-queries from key terms using different combination strategies.
         
-        Strategies:
-        1. Individual terms
-        2. Pairs of adjacent terms
-        3. All terms together
-        4. Non-adjacent pairs
-        5. 3-term sequences
+        Strategies (in priority order):
+        1. Multi-word terms first (e.g., "Bearer token" as single search)
+        2. All terms together (comprehensive search)
+        3. Pairs of adjacent terms (context-aware searches)
+        4. Individual terms (precision searches)
+        5. Non-adjacent pairs (flexibility)
+        6. 3-term sequences (specificity)
         
-        Example: ['api', 'authentication', 'bearer']
-        Returns: ['api', 'authentication', 'bearer', 'api authentication', 
-                  'authentication bearer', 'api authentication bearer', ...]
+        Example: ['api', 'authentication', 'Bearer token']
+        Returns: ['Bearer token', 'api authentication Bearer token', 
+                  'api authentication', 'api', 'authentication', ...]
         """
         if not key_terms:
             return []
         
         sub_queries = []
         
-        # Strategy 1: Individual terms
-        sub_queries.extend(key_terms)
+        # Strategy 0: Prioritize multi-word terms (phrases with spaces)
+        multi_word_terms = [t for t in key_terms if ' ' in t]
+        single_word_terms = [t for t in key_terms if ' ' not in t]
+        
+        # Add multi-word terms first (they're most specific)
+        sub_queries.extend(multi_word_terms)
+        
+        # Strategy 1: All terms together (most comprehensive)
+        if len(key_terms) > 1:
+            all_terms = ' '.join(key_terms)
+            sub_queries.append(all_terms)
         
         # Strategy 2: Pairs of adjacent terms
         for i in range(len(key_terms) - 1):
             pair = f"{key_terms[i]} {key_terms[i + 1]}"
             sub_queries.append(pair)
         
-        # Strategy 3: All terms together (if more than 1 term)
-        if len(key_terms) > 1:
-            all_terms = ' '.join(key_terms)
-            sub_queries.append(all_terms)
+        # Strategy 3: Individual single-word terms
+        sub_queries.extend(single_word_terms)
         
         # Strategy 4: Non-adjacent pairs (skip one)
         for i in range(len(key_terms) - 2):

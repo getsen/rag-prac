@@ -43,7 +43,7 @@ class AdaptiveRAG:
         self,
         db_dir: str = "chroma_db",
         chunks_collection: str = "runbook_chunks",
-        embed_model: str = "BAAI/bge-small-en-v1.5",
+        embed_model: str = "BAAI/bge-large-en-v1.5",
         ollama_model: str = "llama2",
         temperature: float = 0.2,
         max_retrieval_attempts: int = 3,
@@ -197,14 +197,14 @@ class AdaptiveRAG:
             logger.error(f"Error analyzing query: {e}")
             return {"query_analysis": {"intent": "search", "topics": []}, "attempts": 0}
 
-    def _rerank_documents(self, query: str, documents: List[Dict[str, Any]], top_k: int = 8) -> List[Dict[str, Any]]:
+    def _rerank_documents(self, query: str, documents: List[Dict[str, Any]], top_k: int = 30) -> List[Dict[str, Any]]:
         """
         Re-rank documents using cross-encoder for better relevance.
         
         Args:
             query: The original query
             documents: List of retrieved documents with 'text' and 'metadata'
-            top_k: Number of top documents to return
+            top_k: Number of top documents to return (default: 30 for comprehensive coverage)
             
         Returns:
             Re-ranked documents
@@ -262,9 +262,10 @@ class AdaptiveRAG:
         
         # Adaptive retrieval: adjust k based on intent
         intent = analysis.get('intent', 'search')
-        # For comprehensive queries, retrieve more documents to ensure coverage
-        # Increased from 16 to 20 to ensure we don't lose relevant documents in aggregation
-        k = 20 if intent == 'comprehensive' else 10
+        # For comprehensive queries, retrieve more documents to ensure coverage from multiple sources
+        # Increased to 50 to ensure we capture all relevant instances from all available sources
+        # This is critical for queries like "list all api endpoints" that should return results from ALL API docs
+        k = 50 if intent == 'comprehensive' else 20
         
         try:
             # Use direct semantic search to bypass strict distance filtering
@@ -297,9 +298,11 @@ class AdaptiveRAG:
                     # For example, if context mentions "linux", add that to searches
                     context_lower = context_part.lower()
             
-            # Perform searches and aggregate results with better deduplication
+            # Perform searches and aggregate results with source diversity
+            # For comprehensive queries, maintain results from multiple sources
             all_hits = {}
             search_order = {}  # Track which search query found each document
+            source_diversity = {}  # Track which sources found each document
             
             for search_idx, search_query in enumerate(queries_to_search):
                 logger.info(f"Searching with query: {search_query}")
@@ -324,11 +327,14 @@ class AdaptiveRAG:
                     commands = json.loads(md.get("commands_json", "[]"))
                     section_path = json.loads(md.get("section_path_json", "[]"))
                     
-                    hit_id = md.get("source", "") + "_" + str(section_path)
+                    # Use doc_id as source (contains filename like "docs/analytics_api.json")
+                    source = md.get("doc_id", "unknown")
+                    # For comprehensive queries: use source as primary key, section_path as secondary
+                    # This ensures we get results from ALL sources, not deduplicated away
+                    hit_id = source + "_" + str(section_path)
                     
-                    # For comprehensive queries, keep documents even if seen before
-                    # But prioritize by combined score: distance + search order
-                    combined_score = dist + (search_idx * 0.01)  # Slightly prefer earlier searches
+                    # Combined score for ranking: distance (lower is better) + slight penalty for later searches
+                    combined_score = dist + (search_idx * 0.01)  # Slightly prefer earlier/more specific searches
                     
                     if hit_id not in all_hits:
                         all_hits[hit_id] = {
@@ -336,16 +342,21 @@ class AdaptiveRAG:
                             "metadata": {**md, "commands": commands, "section_path": section_path},
                             "distance": dist,
                             "combined_score": combined_score,
+                            "source": source,
                         }
                         search_order[hit_id] = search_idx
+                        source_diversity[hit_id] = {source}
                     else:
-                        # Keep document if it has better combined score OR was found in multiple searches
+                        # For comprehensive queries, track if document found in multiple searches
+                        # But keep the best score
                         if combined_score < all_hits[hit_id]["combined_score"]:
                             all_hits[hit_id].update({
                                 "distance": dist,
                                 "combined_score": combined_score,
                             })
-                        # Track if document found in multiple searches (increases importance)
+                        # Track source diversity
+                        if source not in source_diversity.get(hit_id, set()):
+                            source_diversity[hit_id].add(source)
             
             logger.info(f"Total aggregated documents before sorting: {len(all_hits)}")
             
@@ -381,8 +392,10 @@ class AdaptiveRAG:
             # Apply re-ranking to improve relevance
             if self.reranker and len(hits) > 0:
                 hits_before_rerank = len(hits)
-                hits = self._rerank_documents(query, hits, top_k=k)
-                logger.info(f"After re-ranking: {len(hits)} documents (before: {hits_before_rerank})")
+                # For comprehensive queries, keep more results after reranking
+                rerank_top_k = k if intent == 'comprehensive' else min(8, k)
+                hits = self._rerank_documents(query, hits, top_k=rerank_top_k)
+                logger.info(f"After re-ranking: {len(hits)} documents (before: {hits_before_rerank}, rerank_top_k: {rerank_top_k})")
                 
                 # Log GET endpoints after re-ranking
                 get_endpoints_after = [h for h in hits if 'get' in h['text'].lower() or 'GET' in h['metadata'].get('commands_json', '')]
@@ -471,21 +484,38 @@ class AdaptiveRAG:
         query = state['query']
         docs = state.get('retrieved_docs', [])
         attempts = state.get('attempts', 0)
+        max_attempts = state.get('max_attempts', 3)
         
-        # Check for negative indicators
+        # Check for negative indicators (low quality response)
         negative_phrases = [
             "could not find",
             "not found",
             "don't have",
             "not available",
             "no information",
+            "unable to",
+            "i'm sorry",
+            "i apologize",
         ]
         
         is_negative = any(phrase in response.lower() for phrase in negative_phrases)
-        doc_coverage = len(docs) > 0
+        has_docs = len(docs) > 0
         
-        # Evaluate: accept if positive response or no docs, or if we've tried max times
-        is_relevant = (not is_negative or not doc_coverage) or attempts >= state.get('max_attempts', 3)
+        # For comprehensive queries, we should retry if:
+        # - Response is negative AND we have docs (might need different retrieval strategy)
+        # - Response is negative AND we haven't reached max attempts
+        # For specific queries, accept if response is not negative OR if we've hit max attempts
+        
+        is_comprehensive = state.get('query_analysis', {}).get('is_comprehensive', False)
+        
+        if is_comprehensive:
+            # For comprehensive queries, be stricter - keep trying if response is negative and we have attempts left
+            is_relevant = (not is_negative and has_docs) or attempts >= max_attempts
+        else:
+            # For specific queries, accept if response is not negative or max attempts reached
+            is_relevant = (not is_negative) or attempts >= max_attempts
+        
+        logger.info(f"Response evaluation - Negative: {is_negative}, Has docs: {has_docs}, Comprehensive: {is_comprehensive}, Relevant: {is_relevant}, Attempts: {attempts}/{max_attempts}")
         
         logger.debug(f"Response evaluation - Negative: {is_negative}, Has docs: {doc_coverage}, Relevant: {is_relevant}")
         
