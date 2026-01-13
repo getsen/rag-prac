@@ -260,12 +260,16 @@ class AdaptiveRAG:
         else:
             query = query_with_context.strip()
         
-        # Adaptive retrieval: adjust k based on intent
-        intent = analysis.get('intent', 'search')
+        # Use hybrid search analysis to determine if query is comprehensive
+        # This is more reliable than LLM-based analysis when Ollama is not available
+        hybrid_analysis = self.hybrid_search.analyze_query(query)
+        is_comprehensive = hybrid_analysis.get('is_comprehensive', False)
+        
+        # Adaptive retrieval: adjust k based on query type
         # For comprehensive queries, retrieve more documents to ensure coverage from multiple sources
         # Increased to 50 to ensure we capture all relevant instances from all available sources
         # This is critical for queries like "list all api endpoints" that should return results from ALL API docs
-        k = 50 if intent == 'comprehensive' else 20
+        k = 50 if is_comprehensive else 20
         
         try:
             # Use direct semantic search to bypass strict distance filtering
@@ -393,7 +397,7 @@ class AdaptiveRAG:
             if self.reranker and len(hits) > 0:
                 hits_before_rerank = len(hits)
                 # For comprehensive queries, keep more results after reranking
-                rerank_top_k = k if intent == 'comprehensive' else min(8, k)
+                rerank_top_k = k if is_comprehensive else min(8, k)
                 hits = self._rerank_documents(query, hits, top_k=rerank_top_k)
                 logger.info(f"After re-ranking: {len(hits)} documents (before: {hits_before_rerank}, rerank_top_k: {rerank_top_k})")
                 
@@ -501,12 +505,16 @@ class AdaptiveRAG:
         is_negative = any(phrase in response.lower() for phrase in negative_phrases)
         has_docs = len(docs) > 0
         
-        # For comprehensive queries, we should retry if:
-        # - Response is negative AND we have docs (might need different retrieval strategy)
-        # - Response is negative AND we haven't reached max attempts
-        # For specific queries, accept if response is not negative OR if we've hit max attempts
+        # Get the clean query (strip context)
+        if '\n\nContext:' in query:
+            clean_query = query.split('\n\nContext:')[0].strip()
+        else:
+            clean_query = query.strip()
         
-        is_comprehensive = state.get('query_analysis', {}).get('is_comprehensive', False)
+        # Use hybrid search analysis to determine if query is comprehensive
+        # This is more reliable than LLM-based analysis
+        hybrid_analysis = self.hybrid_search.analyze_query(clean_query)
+        is_comprehensive = hybrid_analysis.get('is_comprehensive', False)
         
         if is_comprehensive:
             # For comprehensive queries, be stricter - keep trying if response is negative and we have attempts left
@@ -516,8 +524,6 @@ class AdaptiveRAG:
             is_relevant = (not is_negative) or attempts >= max_attempts
         
         logger.info(f"Response evaluation - Negative: {is_negative}, Has docs: {has_docs}, Comprehensive: {is_comprehensive}, Relevant: {is_relevant}, Attempts: {attempts}/{max_attempts}")
-        
-        logger.debug(f"Response evaluation - Negative: {is_negative}, Has docs: {doc_coverage}, Relevant: {is_relevant}")
         
         return {"is_relevant": is_relevant, "attempts": attempts + 1}
 
