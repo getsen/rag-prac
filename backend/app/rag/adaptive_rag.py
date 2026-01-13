@@ -13,6 +13,7 @@ from langgraph.graph import StateGraph, START, END
 from langchain_core.output_parsers import JsonOutputParser
 from sentence_transformers import SentenceTransformer, CrossEncoder
 
+from app.rag.hybrid_search import HybridSearchStrategy
 from app.config import settings
 from app.rag.rag_query import RAGQueryEngine
 from app.llm.ollama.ollama_client import OllamaClient
@@ -52,6 +53,10 @@ class AdaptiveRAG:
         self.ollama_model = ollama_model
         self.temperature = temperature
         self.max_attempts = max_retrieval_attempts
+        
+        # Initialize hybrid search strategy
+        self.hybrid_search = HybridSearchStrategy()
+        logger.info("Hybrid search strategy initialized")
         
         # Initialize re-ranker for better document ranking
         try:
@@ -215,6 +220,12 @@ class AdaptiveRAG:
             # Get re-ranking scores
             scores = self.reranker.predict(pairs)
             
+            # Log all scores before sorting
+            logger.debug(f"Re-ranking {len(documents)} documents:")
+            for doc, score in zip(documents, scores):
+                section_path = doc['metadata'].get('section_path', [])
+                logger.debug(f"  - {section_path}: {score:.3f}")
+            
             # Sort by score (descending)
             ranked_docs = sorted(
                 zip(documents, scores),
@@ -238,13 +249,22 @@ class AdaptiveRAG:
         """Retrieve relevant documents using adaptive strategies."""
         logger.debug(f"Retrieving documents for query: {state['query']}")
         
-        query = state['query']
+        query_with_context = state['query']
         analysis = state.get('query_analysis', {})
         full_context = state.get('conversation_context', '')  # Get the full enriched context
         
+        # Strip context from query for retrieval
+        # The query comes as "user question\n\nContext: ..." and we need just the question part
+        if '\n\nContext:' in query_with_context:
+            query = query_with_context.split('\n\nContext:')[0].strip()
+        else:
+            query = query_with_context.strip()
+        
         # Adaptive retrieval: adjust k based on intent
         intent = analysis.get('intent', 'search')
-        k = 12 if intent == 'comprehensive' else 8
+        # For comprehensive queries, retrieve more documents to ensure coverage
+        # Increased from 16 to 20 to ensure we don't lose relevant documents in aggregation
+        k = 20 if intent == 'comprehensive' else 10
         
         try:
             # Use direct semantic search to bypass strict distance filtering
@@ -252,10 +272,10 @@ class AdaptiveRAG:
             col = self.rag_engine.client.get_collection(name=self.rag_engine.chunks_collection)
             model = SentenceTransformer(self.rag_engine.embed_model)
             
-            # If query has context, do multiple searches for better coverage
-            queries_to_search = [query]
+            # Use hybrid search strategy to decompose and expand queries
+            queries_to_search = self.hybrid_search.get_search_queries(query)
             
-            # If we have conversation context, extract key terms and create search variations
+            # If we have conversation context, add context-aware searches
             # Handle both old format '[CONVERSATION CONTEXT]' and new compacted formats '[PREVIOUS CONTEXT SUMMARY]', '[RECENT CONVERSATION]'
             if full_context and ('[CONVERSATION CONTEXT]' in full_context or '[PREVIOUS CONTEXT SUMMARY]' in full_context):
                 # Extract conversation context to find key topics
@@ -276,20 +296,12 @@ class AdaptiveRAG:
                     # Try to extract key terms from context (look for previous topics)
                     # For example, if context mentions "linux", add that to searches
                     context_lower = context_part.lower()
-                    
-                    # Extract key topics from conversation
-                    if 'linux' in context_lower:
-                        queries_to_search.append(f"{query} linux")
-                    if 'install' in context_lower or 'setup' in context_lower or 'ubuntu' in context_lower or 'debian' in context_lower:
-                        queries_to_search.append(f"{query} installation setup")
-                    if 'docker' in context_lower:
-                        queries_to_search.append(f"{query} docker")
-                    if 'onboarding' in context_lower:
-                        queries_to_search.append(f"{query} onboarding")
             
-            # Perform searches and aggregate results
+            # Perform searches and aggregate results with better deduplication
             all_hits = {}
-            for search_query in queries_to_search:
+            search_order = {}  # Track which search query found each document
+            
+            for search_idx, search_query in enumerate(queries_to_search):
                 logger.info(f"Searching with query: {search_query}")
                 qemb = model.encode([search_query], normalize_embeddings=True).tolist()
                 
@@ -307,33 +319,85 @@ class AdaptiveRAG:
                 logger.info(f"  Found {len(docs_list)} results for '{search_query}'")
                 
                 # Convert to hit format with decoded metadata
-                for doc_text, md, dist in zip(docs_list, metas_list, dists):
+                for doc_idx, (doc_text, md, dist) in enumerate(zip(docs_list, metas_list, dists)):
                     # Decode metadata (same as RAGQueryEngine)
                     commands = json.loads(md.get("commands_json", "[]"))
                     section_path = json.loads(md.get("section_path_json", "[]"))
                     
                     hit_id = md.get("source", "") + "_" + str(section_path)
+                    
+                    # For comprehensive queries, keep documents even if seen before
+                    # But prioritize by combined score: distance + search order
+                    combined_score = dist + (search_idx * 0.01)  # Slightly prefer earlier searches
+                    
                     if hit_id not in all_hits:
                         all_hits[hit_id] = {
                             "text": doc_text,
                             "metadata": {**md, "commands": commands, "section_path": section_path},
                             "distance": dist,
+                            "combined_score": combined_score,
                         }
+                        search_order[hit_id] = search_idx
                     else:
-                        # Keep the best (lowest) distance
-                        if dist < all_hits[hit_id]["distance"]:
-                            all_hits[hit_id]["distance"] = dist
+                        # Keep document if it has better combined score OR was found in multiple searches
+                        if combined_score < all_hits[hit_id]["combined_score"]:
+                            all_hits[hit_id].update({
+                                "distance": dist,
+                                "combined_score": combined_score,
+                            })
+                        # Track if document found in multiple searches (increases importance)
             
-            # Sort by distance and return top k
-            hits = sorted(all_hits.values(), key=lambda x: x['distance'])[:k]
+            logger.info(f"Total aggregated documents before sorting: {len(all_hits)}")
             
-            logger.info(f"Retrieved {len(hits)} documents (distances: {[h['distance'] for h in hits[:3]]})")
+            # Sort by combined score and return top k
+            # For comprehensive queries, prefer documents with diversity (found in multiple searches)
+            sorted_hits = sorted(all_hits.values(), key=lambda x: x['combined_score'])
+            logger.info(f"Top {min(k, len(sorted_hits))} of {len(sorted_hits)} after sorting by combined_score (k={k})")
+            
+            # Log first and last few combined scores
+            if sorted_hits:
+                lowest_scores = [f"{h['combined_score']:.4f}" for h in sorted_hits[:3]]
+                logger.info(f"  Lowest scores (best): {lowest_scores}")
+                highest_scores = [f"{h['combined_score']:.4f}" for h in sorted_hits[-3:]]
+                logger.info(f"  Highest scores (worst): {highest_scores}")
+                if k < len(sorted_hits):
+                    cutoff_doc = sorted_hits[k-1]
+                    next_doc = sorted_hits[k]
+                    logger.info(f"  Cutoff at k={k}: score {cutoff_doc['combined_score']:.4f} vs next {next_doc['combined_score']:.4f}")
+            
+            hits = sorted_hits[:k]
+            
+            logger.info(f"Retrieved {len(hits)} unique documents (k={k}, total candidates={len(all_hits)})")
+            if hits:
+                logger.info(f"  Distance range: [{hits[0]['distance']:.4f}, {hits[-1]['distance']:.4f}]")
+            
+            # Log all GET endpoints found (for debugging)
+            get_endpoints = [h for h in hits if 'get' in h['text'].lower() or 'GET' in h['metadata'].get('commands_json', '')]
+            logger.info(f"  GET endpoints in retrieval (before reranking): {len(get_endpoints)}")
+            for ep in get_endpoints:
+                section_path = ep['metadata'].get('section_path', [])
+                logger.info(f"    - {section_path} (distance: {ep['distance']:.3f})")
             
             # Apply re-ranking to improve relevance
             if self.reranker and len(hits) > 0:
-                original_query = state['query'].split('\n\nContext:')[0] if '\n\nContext:' in state['query'] else state['query']
-                hits = self._rerank_documents(original_query, hits, top_k=k)
-                logger.info(f"After re-ranking: {len(hits)} documents")
+                hits_before_rerank = len(hits)
+                hits = self._rerank_documents(query, hits, top_k=k)
+                logger.info(f"After re-ranking: {len(hits)} documents (before: {hits_before_rerank})")
+                
+                # Log GET endpoints after re-ranking
+                get_endpoints_after = [h for h in hits if 'get' in h['text'].lower() or 'GET' in h['metadata'].get('commands_json', '')]
+                logger.info(f"  GET endpoints after re-ranking: {len(get_endpoints_after)}")
+                for ep in get_endpoints_after:
+                    section_path = ep['metadata'].get('section_path', [])
+                    score = ep.get('rerank_score', 'N/A')
+                    logger.info(f"    - {section_path} (rerank_score: {score})")
+                
+                # Log GET endpoints after re-ranking
+                get_endpoints_after = [h for h in hits if 'get' in h['text'].lower() or 'GET' in h['metadata'].get('commands_json', '')]
+                logger.debug(f"  GET endpoints after re-ranking: {len(get_endpoints_after)}")
+                for ep in get_endpoints_after:
+                    rerank_score = ep.get('rerank_score', 'N/A')
+                    logger.debug(f"    - {ep['metadata'].get('section_path_json', 'unknown')} (rerank_score: {rerank_score})")
             
             return {"retrieved_docs": hits}
             
