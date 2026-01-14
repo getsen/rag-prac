@@ -235,17 +235,17 @@ class ConversationContextManager:
                 result.append(item)
         return result[:5]  # Top 5 entities
     
-    def _compact_context(self, max_recent_turns: int = 4, max_compact_chars: int = 800) -> str:
+    def _compact_context(self, max_recent_turns: int = 6, max_compact_chars: int = 1200) -> str:
         """
         Compact conversation context by keeping recent turns verbatim
         and summarizing older turns as key points.
         
         This reduces token usage in subsequent queries while maintaining
-        conversation understanding.
+        conversation understanding, especially for follow-up questions.
         
         Args:
-            max_recent_turns: Number of recent turns to keep verbatim
-            max_compact_chars: Maximum characters for older turns summary
+            max_recent_turns: Number of recent turns to keep verbatim (increased to 6 for better follow-ups)
+            max_compact_chars: Maximum characters for older turns summary (increased to 1200)
             
         Returns:
             Compacted context string
@@ -269,12 +269,22 @@ class ConversationContextManager:
             
             # Extract key entities and topics from older turns
             key_points = []
-            for turn in older_turns[-3:]:  # Look at last 3 older turns for context
+            context_summaries = []
+            
+            for i, turn in enumerate(older_turns[-5:]):  # Look at last 5 older turns for context
                 entities = self._extract_key_entities(turn.content)
                 if entities:
                     key_points.extend(entities)
+                
+                # Keep abbreviated versions of previous assistant responses for reference
+                if turn.role == "assistant" and len(turn.content) > 0:
+                    # Keep first 300 chars of each previous response for better follow-up context
+                    summary = turn.content[:300]
+                    if len(turn.content) > 300:
+                        summary += "..."
+                    context_summaries.append(f"Previous response {i+1}: {summary}")
             
-            if key_points:
+            if key_points or context_summaries:
                 compact_parts.append("[PREVIOUS CONTEXT SUMMARY]")
                 # Deduplicate while preserving order
                 seen = set()
@@ -283,17 +293,27 @@ class ConversationContextManager:
                     if point.lower() not in seen:
                         seen.add(point.lower())
                         unique_points.append(point)
-                compact_parts.append(f"Key topics: {', '.join(unique_points[:5])}")
+                if unique_points:
+                    compact_parts.append(f"Key topics discussed: {', '.join(unique_points[:8])}")
+                
+                # Add abbreviated summaries of previous responses (for understanding "this", "that", "the third point" etc.)
+                for summary in context_summaries[:3]:
+                    compact_parts.append(summary)
                 compact_parts.append("")
         
         # Add recent turns verbatim
         compact_parts.append("[RECENT CONVERSATION]")
-        for turn in self.conversation_history[recent_start:]:
+        for idx, turn in enumerate(self.conversation_history[recent_start:]):
             role_label = "User" if turn.role == "user" else "Assistant"
-            # Truncate very long responses but keep enough context
+            # Don't truncate the most recent turn (usually the last assistant response)
+            # as follow-up questions often reference numbered items from the previous response
             content = turn.content
-            if len(content) > 500:
-                content = content[:500] + "..."
+            is_last_turn = (idx == len(self.conversation_history[recent_start:]) - 1)
+            
+            if not is_last_turn and len(content) > 800:
+                # Only truncate older turns in the recent window
+                content = content[:800] + "..."
+            
             compact_parts.append(f"{role_label}: {content}")
         
         return "\n".join(compact_parts)

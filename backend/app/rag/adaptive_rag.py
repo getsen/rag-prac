@@ -166,6 +166,54 @@ class AdaptiveRAG:
         
         return workflow.compile()
 
+    def _extract_reference_indicators(self, query: str) -> List[str]:
+        """
+        Dynamically extract reference indicators from the query.
+        
+        Instead of hard-coding patterns, this method detects common reference types:
+        - Ordinal references: "first", "second", "third", "#2", "3rd", etc.
+        - Pronouns: "this", "that", "these", "those"
+        - Positional: "previous", "last", "next", "above", "below"
+        - Quantifiers: "another", "one more", "additional"
+        
+        Args:
+            query: The user query to analyze
+            
+        Returns:
+            List of detected reference indicators found in the query
+        """
+        import re
+        
+        # Define reference indicator patterns dynamically
+        reference_patterns = {
+            'ordinal_numbers': r'\b(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth)\b',
+            'numbered_format': r'(#\d+|\d+(?:st|nd|rd|th))\b',
+            'pronouns': r'\b(this|that|these|those|it)\b',
+            'positional': r'\b(previous|last|next|above|below|earlier|mentioned)\b',
+            'quantifiers': r'\b(another|one more|additional|more about|tell me about)\b',
+        }
+        
+        detected_indicators = []
+        query_lower = query.lower()
+        
+        for indicator_type, pattern in reference_patterns.items():
+            matches = re.findall(pattern, query_lower)
+            if matches:
+                # Flatten tuples from regex groups
+                flat_matches = [m if isinstance(m, str) else m[0] for m in matches]
+                detected_indicators.extend(flat_matches)
+                logger.debug(f"  Reference type '{indicator_type}': {flat_matches}")
+        
+        # Deduplicate while preserving order
+        seen = set()
+        unique_indicators = []
+        for indicator in detected_indicators:
+            if indicator.lower() not in seen:
+                seen.add(indicator.lower())
+                unique_indicators.append(indicator)
+        
+        return unique_indicators
+
     def _analyze_query(self, state: AdaptiveRAGState) -> Dict[str, Any]:
         """Analyze query to extract intent and requirements."""
         logger.debug(f"Analyzing query: {state['query']}")
@@ -259,6 +307,24 @@ class AdaptiveRAG:
             query = query_with_context.split('\n\nContext:')[0].strip()
         else:
             query = query_with_context.strip()
+        
+        # For follow-up questions, enhance the retrieval query with context
+        # This helps resolve pronouns like "this", "that", "the third point", etc.
+        if full_context and query != state['query']:
+            # If we have a follow-up question with context, enhance the retrieval query
+            logger.info(f"Enhancing retrieval with conversation context for follow-up question")
+            
+            # Dynamically extract reference terms from the query (e.g., "3rd", "third", "#2", "first")
+            # instead of hard-coding patterns
+            reference_indicators = self._extract_reference_indicators(query)
+            
+            if reference_indicators:
+                logger.info(f"Detected reference indicators in follow-up question: {reference_indicators}")
+                # Extract the actual numbered items from the previous context to include in retrieval
+                # This gives semantic search better hints about what we're looking for
+                query = f"{query}\n\nReferencing previous list items from: {full_context}"
+            else:
+                query = f"{query}\n\nBased on previous discussion about: {full_context}"
         
         # Use hybrid search analysis to determine if query is comprehensive
         # This is more reliable than LLM-based analysis when Ollama is not available
@@ -440,26 +506,50 @@ class AdaptiveRAG:
         # Build context using the RAGQueryEngine's context builder
         context = self.rag_engine.build_context(docs)
         
-        system_prompt = """You are a helpful technical assistant answering questions about runbooks and operational procedures.
+        system_prompt = """You are a helpful and friendly technical assistant answering questions about runbooks and operational procedures.
 
+        CRITICAL INSTRUCTIONS FOR FOLLOW-UP QUESTIONS:
+        When the user asks about "the #3 point", "third point", "the third item", etc.:
+        1. FIRST: Look at the CONVERSATION HISTORY section to find the numbered list from the previous response
+        2. THEN: Find the specific item they're referring to (e.g., 3rd item in the list)
+        3. FINALLY: Use the documentation provided to explain details about that specific item
+        
         IMPORTANT INSTRUCTIONS:
         1. Answer ONLY using the provided documentation context below
         2. When you see conversation history, use it to understand pronouns and vague references
         3. DO NOT say "the provided documentation does not contain" if relevant docs are provided
         4. Be direct and helpful - cite sources when relevant
+        5. For follow-up questions like "explain about X point" or "explain about this", refer back to previous answers to understand the context
+        6. End every response with a friendly closing that invites further questions
 
         When answering follow-up questions:
+        - "#3 point" or "third point" refers to the 3rd item in a numbered list from the previous response
         - "this" or "that" refers to the topic from the previous question
+        - "the Nth point" refers to the Nth item in the previous list
+        - Always first identify what item from the previous response is being referenced
         - Use conversation context to disambiguate vague questions
-        - Answer what is being asked in the context of the conversation"""
+        - Answer what is being asked in the context of the conversation
+        
+        RESPONSE FORMAT:
+        - Start with a brief, friendly greeting if this is the beginning of conversation
+        - Provide a clear, comprehensive answer to the question
+        - End with: "Is there anything else you'd like to know?" or similar helpful closing"""
                 
         user_prompt = f"""DOCUMENTATION:
         {context['context_text']}
 
-        USER QUESTION (with conversation context):
+        CONVERSATION HISTORY AND CURRENT QUESTION:
         {full_query}
 
-        Answer the question directly using the documentation provided. If this is a follow-up question, use the conversation context to understand what topic is being referenced."""
+        INSTRUCTIONS:
+        - For follow-up questions about a numbered list (e.g., "Explain about #3 point"):
+          1. Look at the CONVERSATION HISTORY section above to find the previous numbered list
+          2. Identify the specific item being referenced
+          3. Use the documentation to provide details about that item
+        - Answer the question directly using the documentation provided
+        - If this is a follow-up question, use the conversation context to understand what topic or item is being referenced, then answer about it from the documentation
+        - Always end your response by asking if there's anything else the user needs help with
+        - Be conversational and friendly in tone"""
         
         try:
             llm_response = self._call_llm(
