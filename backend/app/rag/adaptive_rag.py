@@ -438,13 +438,13 @@ class AdaptiveRAG:
             # Log first and last few combined scores
             if sorted_hits:
                 lowest_scores = [f"{h['combined_score']:.4f}" for h in sorted_hits[:3]]
-                logger.info(f"  Lowest scores (best): {lowest_scores}")
+                # logger.info(f"  Lowest scores (best): {lowest_scores}")
                 highest_scores = [f"{h['combined_score']:.4f}" for h in sorted_hits[-3:]]
-                logger.info(f"  Highest scores (worst): {highest_scores}")
+                # logger.info(f"  Highest scores (worst): {highest_scores}")
                 if k < len(sorted_hits):
                     cutoff_doc = sorted_hits[k-1]
                     next_doc = sorted_hits[k]
-                    logger.info(f"  Cutoff at k={k}: score {cutoff_doc['combined_score']:.4f} vs next {next_doc['combined_score']:.4f}")
+                    # logger.info(f"  Cutoff at k={k}: score {cutoff_doc['combined_score']:.4f} vs next {next_doc['combined_score']:.4f}")
             
             hits = sorted_hits[:k]
             
@@ -454,7 +454,7 @@ class AdaptiveRAG:
             
             # Log all GET endpoints found (for debugging)
             get_endpoints = [h for h in hits if 'get' in h['text'].lower() or 'GET' in h['metadata'].get('commands_json', '')]
-            logger.info(f"  GET endpoints in retrieval (before reranking): {len(get_endpoints)}")
+            # logger.info(f"  GET endpoints in retrieval (before reranking): {len(get_endpoints)}")
             for ep in get_endpoints:
                 section_path = ep['metadata'].get('section_path', [])
                 logger.info(f"    - {section_path} (distance: {ep['distance']:.3f})")
@@ -469,15 +469,15 @@ class AdaptiveRAG:
                 
                 # Log GET endpoints after re-ranking
                 get_endpoints_after = [h for h in hits if 'get' in h['text'].lower() or 'GET' in h['metadata'].get('commands_json', '')]
-                logger.info(f"  GET endpoints after re-ranking: {len(get_endpoints_after)}")
+                # logger.info(f"  GET endpoints after re-ranking: {len(get_endpoints_after)}")
                 for ep in get_endpoints_after:
                     section_path = ep['metadata'].get('section_path', [])
                     score = ep.get('rerank_score', 'N/A')
-                    logger.info(f"    - {section_path} (rerank_score: {score})")
+                    # logger.info(f"    - {section_path} (rerank_score: {score})")
                 
                 # Log GET endpoints after re-ranking
                 get_endpoints_after = [h for h in hits if 'get' in h['text'].lower() or 'GET' in h['metadata'].get('commands_json', '')]
-                logger.debug(f"  GET endpoints after re-ranking: {len(get_endpoints_after)}")
+                # logger.debug(f"  GET endpoints after re-ranking: {len(get_endpoints_after)}")
                 for ep in get_endpoints_after:
                     rerank_score = ep.get('rerank_score', 'N/A')
                     logger.debug(f"    - {ep['metadata'].get('section_path_json', 'unknown')} (rerank_score: {rerank_score})")
@@ -523,9 +523,7 @@ class AdaptiveRAG:
         6. End every response with a friendly closing that invites further questions
 
         When answering follow-up questions:
-        - "#3 point" or "third point" refers to the 3rd item in a numbered list from the previous response
         - "this" or "that" refers to the topic from the previous question
-        - "the Nth point" refers to the Nth item in the previous list
         - Always first identify what item from the previous response is being referenced
         - Use conversation context to disambiguate vague questions
         - Answer what is being asked in the context of the conversation
@@ -550,6 +548,16 @@ class AdaptiveRAG:
         - If this is a follow-up question, use the conversation context to understand what topic or item is being referenced, then answer about it from the documentation
         - Always end your response by asking if there's anything else the user needs help with
         - Be conversational and friendly in tone"""
+        
+        # Log the full context being sent to LLM
+        logger.info(f"=== CONTEXT SENT TO LLM ===")
+        # logger.info(f"Full conversation context + query length: {len(full_query)} chars")
+        # Only log the full_query if it's not too large (avoid massive log spam)
+        if len(full_query) < 3000:
+            logger.info(f"Full context:\n{full_query}")
+        else:
+            logger.info(f"Full context (truncated, too large): {full_query[:1000]}...")
+        logger.info(f"=== END CONTEXT ===\n")
         
         try:
             llm_response = self._call_llm(
@@ -713,21 +721,27 @@ class AdaptiveRAG:
             Dictionary with response, sources, and metadata
         """
         logger.info(f"Starting adaptive RAG query (sync): {query}")
+        logger.info(f"=== QUERY START ===")
+        logger.info(f"Original user query: {query}")
         
         # Store conversation context separately for use in response generation
-        # For retrieval, we'll use the original query to get better semantic matches
-        retrieval_query = query
+        # For retrieval, we'll use the original clean query to get better semantic matches
+        # We won't append context to retrieval query as it dilutes the semantic signal and creates malformed sub-queries
+        retrieval_query = query  # Keep clean for decomposition
         enriched_query = query
         
         if conversation_context:
+            # logger.info(f"Conversation context available ({len(conversation_context)} chars):")
+            logger.info(f"conversation_context: {conversation_context}")
             enriched_query = f"[CONVERSATION CONTEXT]\n{conversation_context}\n\n[CURRENT QUERY]\n{query}"
-            logger.info(f"Using conversation context ({len(conversation_context)} chars) for response generation")
-            # For retrieval, combine context with current query to improve semantic search
-            # But use mostly the current query to avoid diluting the semantic signal
-            retrieval_query = f"{query}\n\nContext: {conversation_context}"
+            logger.info(f"Using conversation context for response generation (will be passed to response generation, not retrieval)")
+        else:
+            logger.info(f"No conversation context (first query in conversation)")
+        
+        logger.info(f"=== QUERY END ===\n")
         
         initial_state: AdaptiveRAGState = {
-            "query": retrieval_query,
+            "query": retrieval_query,  # Clean query for retrieval and decomposition
             "messages": [],
             "retrieved_docs": [],
             "query_analysis": {},
@@ -737,7 +751,7 @@ class AdaptiveRAG:
             "max_attempts": self.max_attempts,
             "final_response": "",
             "sources": [],
-            "conversation_context": enriched_query,  # Store full enriched context for response generation
+            "conversation_context": enriched_query,  # Full enriched context for response generation only
         }
         
         try:

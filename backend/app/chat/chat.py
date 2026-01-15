@@ -181,7 +181,16 @@ class ChatService:
         adaptive_rag = get_adaptive_rag()
         
         # Get conversation context to enrich the query
-        conv_context = ctx_manager.get_context_for_rag()
+        # Use LLM-based compaction for better semantic understanding of follow-up questions
+        conv_context = ctx_manager.get_context_for_rag(use_compact=True, use_llm_compaction=True)
+        
+        logger.info(f"\n{'='*80}")
+        logger.info(f"[CONV_ID: {conv_id}] === CONVERSATION CONTEXT FOR RAG ===")
+        # logger.info(f"[CONV_ID: {conv_id}] Context retrieved - Turn count: {conv_context.get('turn_count', 0)}")
+        # logger.info(f"[CONV_ID: {conv_id}] Full context length: {len(conv_context.get('full_context', ''))} chars")
+        logger.info(f"[CONV_ID: {conv_id}] {conv_context.get('full_context', '')}")
+        logger.info(f"[CONV_ID: {conv_id}] === END CONVERSATION CONTEXT ===")
+        logger.info(f"{'='*80}\n")
         
         def sse_gen():
             response_text = ""

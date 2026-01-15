@@ -235,6 +235,106 @@ class ConversationContextManager:
                 result.append(item)
         return result[:5]  # Top 5 entities
     
+    def _compact_context_with_llm(self) -> str:
+        """
+        Compact conversation context using LLM for semantic summarization.
+        
+        This method uses the LLM to extract key points from previous turns,
+        creating a high-quality semantic summary instead of simple truncation.
+        This is especially useful for follow-up questions where exact phrasing matters.
+        
+        Returns:
+            LLM-compacted context string
+        """
+        if not self.conversation_history:
+            return ""
+        
+        total_turns = len(self.conversation_history)
+        
+        logger.info(f"\n{'='*80}")
+        logger.info(f"[CONV_ID: {self.conversation_id}] === CONTEXT COMPACTION WITH LLM START ===")
+        # logger.info(f"[CONV_ID: {self.conversation_id}] Total conversation turns: {total_turns}")
+        
+        # For 2 or fewer turns, just return full context (nothing to compact)
+        if total_turns <= 2:
+            # logger.info(f"[CONV_ID: {self.conversation_id}] Only {total_turns} turns - returning full context without compaction")
+            result = self.get_context_window(include_system=False)
+            logger.info(f"[CONV_ID: {self.conversation_id}] Full context (no compaction needed):\n{result}")
+            logger.info(f"[CONV_ID: {self.conversation_id}] === CONTEXT COMPACTION WITH LLM END ===")
+            logger.info(f"{'='*80}\n")
+            return result
+        
+        # For longer conversations (3+ turns), summarize older turns
+        older_turns = self.conversation_history[:-2]  # Everything except last 2 turns
+        recent_turns = self.conversation_history[-2:]  # Last 2 turns
+        
+        logger.info(f"[CONV_ID: {self.conversation_id}] Older turns to summarize: {len(older_turns)}")
+        logger.info(f"[CONV_ID: {self.conversation_id}] Recent turns to preserve: {len(recent_turns)}")
+        
+        # Build the context to summarize
+        older_context = "\n".join([
+            f"{'User' if t.role == 'user' else 'Assistant'}: {t.content}"
+            for t in older_turns
+        ])
+        
+        # Use LLM to summarize
+        try:
+            from app.rag.adaptive_rag import get_adaptive_rag
+            adaptive_rag = get_adaptive_rag()
+            
+            summarization_prompt = f"""Summarize the following conversation history into key points and findings.
+            
+            CONVERSATION HISTORY:
+            {older_context}
+
+            Create a concise summary that:
+            1. Extracts main topics discussed
+            2. Lists key findings or items mentioned (especially numbered lists)
+            3. Captures important context for understanding follow-up questions
+            4. Preserves numbered lists in a clear format like "1. Item name: description"
+
+            Format the summary as:
+            SUMMARY OF PREVIOUS DISCUSSION:
+            Key Topics: [comma-separated list]
+
+            Previous Findings/Items:
+            [numbered list of important items]
+
+            Keep it under 300 words."""
+
+            summary = adaptive_rag._call_llm(
+                prompt=summarization_prompt,
+                system="You are a conversation summarizer. Create concise, numbered summaries that preserve key information for follow-up questions.",
+                temperature=0.3,
+            )
+            
+            logger.info(f"[CONV_ID: {self.conversation_id}] LLM-based context compaction generated {len(summary)} chars")
+            logger.info(f"[CONV_ID: {self.conversation_id}] Compacted summary:\n{summary}")
+            
+        except Exception as e:
+            logger.warning(f"[CONV_ID: {self.conversation_id}] Error in LLM-based context compaction: {e}. Falling back to text-based compaction.")
+            logger.info(f"[CONV_ID: {self.conversation_id}] === CONTEXT COMPACTION WITH LLM END (FALLBACK) ===")
+            logger.info(f"{'='*80}\n")
+            return self._compact_context()
+        
+        # Combine summary with recent turns
+        compact_parts = [
+            "[PREVIOUS CONTEXT SUMMARY]",
+            summary,
+            "",
+            "[RECENT CONVERSATION]",
+        ]
+        
+        # Add recent turns verbatim (don't truncate)
+        for turn in recent_turns:
+            role_label = "User" if turn.role == "user" else "Assistant"
+            compact_parts.append(f"{role_label}: {turn.content}")
+        
+        result = "\n".join(compact_parts)
+        logger.info(f"[CONV_ID: {self.conversation_id}] === CONTEXT COMPACTION WITH LLM END ===")
+        logger.info(f"{'='*80}\n")
+        return result
+    
     def _compact_context(self, max_recent_turns: int = 6, max_compact_chars: int = 1200) -> str:
         """
         Compact conversation context by keeping recent turns verbatim
@@ -254,14 +354,22 @@ class ConversationContextManager:
             return ""
         
         total_turns = len(self.conversation_history)
+        logger.info(f"\n{'='*80}")
+        logger.info(f"[CONV_ID: {self.conversation_id}] === TEXT-BASED CONTEXT COMPACTION START ===")
+        logger.info(f"[CONV_ID: {self.conversation_id}] Total turns: {total_turns}, max_recent_turns: {max_recent_turns}")
         compact_parts = []
         
         # Keep recent N turns verbatim
         if total_turns <= max_recent_turns:
             # If we have few turns, return full context
-            return self.get_context_window(include_system=False)
+            logger.info(f"[CONV_ID: {self.conversation_id}] Only {total_turns} turns (≤ {max_recent_turns}) - returning full context without compaction")
+            result = self.get_context_window(include_system=False)
+            logger.info(f"[CONV_ID: {self.conversation_id}] === TEXT-BASED CONTEXT COMPACTION END ===")
+            logger.info(f"{'='*80}\n")
+            return result
         
         recent_start = max(0, total_turns - max_recent_turns)
+        logger.info(f"[CONV_ID: {self.conversation_id}] Recent start index: {recent_start}, will keep last {total_turns - recent_start} turns")
         
         # Add summary of older turns if they exist
         if recent_start > 0:
@@ -316,21 +424,31 @@ class ConversationContextManager:
             
             compact_parts.append(f"{role_label}: {content}")
         
-        return "\n".join(compact_parts)
+        result = "\n".join(compact_parts)
+        logger.info(f"[CONV_ID: {self.conversation_id}] === TEXT-BASED CONTEXT COMPACTION END ===")
+        logger.info(f"[CONV_ID: {self.conversation_id}] Final compacted context length: {len(result)} characters")
+        logger.info(f"[CONV_ID: {self.conversation_id}] Number of parts in context: {len(compact_parts)}")
+        logger.info(f"{'='*80}\n")
+        return result
     
-    def get_context_for_rag(self, use_compact: bool = True) -> Dict[str, str]:
+    def get_context_for_rag(self, use_compact: bool = True, use_llm_compaction: bool = False) -> Dict[str, str]:
         """
         Get context formatted specifically for RAG queries.
         
         Args:
             use_compact: If True, uses compacted context for full_context.
                         If False, returns full uncompacted context.
+            use_llm_compaction: If True, uses LLM to semantically compact context (slower but better).
+                               If False, uses simple text-based compaction (faster).
         
         Returns:
             Dictionary with 'recent_context' and 'full_context'
         """
         if use_compact:
-            full_context = self._compact_context()
+            if use_llm_compaction:
+                full_context = self._compact_context_with_llm()
+            else:
+                full_context = self._compact_context()
         else:
             full_context = self.get_context_window(include_system=False)
         
