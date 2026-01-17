@@ -56,6 +56,7 @@ export default function App() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [mode, setMode] = useState<"rag" | "agentic">("rag");
 
   const abortRef = useRef<AbortController | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
@@ -143,6 +144,7 @@ export default function App() {
       message: text,
       section_contains: null,
       conversation_id: conversationId,
+      mode: mode,
     };
 
     const abort = new AbortController();
@@ -324,6 +326,20 @@ export default function App() {
         )}
 
         <div className="chat">
+          <div className="mode-toggle">
+            <button
+              className={`mode-btn ${mode === "rag" ? "active" : ""}`}
+              onClick={() => setMode("rag")}
+            >
+              RAG
+            </button>
+            <button
+              className={`mode-btn ${mode === "agentic" ? "active" : ""}`}
+              onClick={() => setMode("agentic")}
+            >
+              Agentic
+            </button>
+          </div>
           <div className="messages" ref={scrollerRef}>
             {messages.map((m) => (
               <div className={`msg ${m.role}`} key={m.id}>

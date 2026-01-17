@@ -72,6 +72,9 @@ class Settings(BaseSettings):
     ocr_language: str = "eng"  # Tesseract language code
     ocr_dpi: int = 300  # DPI for PDF to image conversion
     
+    # Express API settings for agentic tools
+    express_api_url: str = "http://localhost:3001"  # URL for Express API server
+    
     # CORS settings
     cors_origins: List[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
 

@@ -44,8 +44,12 @@ class OllamaStreamClient:
             logger.info(f"OllamaStreamClient initialized with base_url={base_url}")
         
         self.timeout = timeout
+        
+        # Both cloud and local use /api/generate endpoint
+        # The difference is in authentication (Bearer token for cloud)
         self.api_endpoint = f"{self.base_url}/api/generate"
-        logger.info(f"OllamaStreamClient ready - timeout={timeout}")
+        
+        logger.info(f"OllamaStreamClient ready - api_endpoint={self.api_endpoint}, timeout={timeout}")
 
     def generate_stream(
         self,
@@ -68,13 +72,16 @@ class OllamaStreamClient:
         """
         logger.debug(f"Streaming from model={model} with temperature={temperature}")
         
+        # Build payload for /api/generate endpoint (same for both cloud and local)
         payload: Dict[str, Any] = {
             "model": model,
             "prompt": prompt,
             "stream": True,
             "options": {"temperature": temperature},
         }
-        if system:
+        
+        # System prompt is only supported by local Ollama, not Ollama Cloud
+        if system and not self.use_cloud:
             payload["system"] = system
 
         try:

@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Literal
 from pydantic import BaseModel
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
@@ -21,6 +21,7 @@ class ChatRequest(BaseModel):
     message: str
     section_contains: Optional[str] = None
     conversation_id: Optional[str] = None  # For maintaining context across turns
+    mode: Optional[Literal["rag", "agentic"]] = "rag"  # Toggle between RAG and Agentic modes
 
 class ChatResponse(BaseModel):
     answer: str
@@ -157,14 +158,14 @@ class ChatService:
         return StreamingResponse(gen(), media_type="text/event-stream")
 
     def process_chat_stream(self, req: ChatRequest) -> StreamingResponse:
-        """Process a chat request and return streaming response with adaptive RAG."""
+        """Process a chat request and return streaming response with adaptive RAG or Agentic mode."""
         logger.info("--------------------------------------------------------------------------")
-        logger.info(f"Processing chat request with conversation_id: {req.conversation_id}")
+        logger.info(f"Processing chat request with conversation_id: {req.conversation_id}, mode: {req.mode}")
         
         # Get or create conversation context
         conv_id, ctx_manager = get_or_create_conversation(req.conversation_id)
         
-        logger.info(f"Using conversation ID: {conv_id}, message: {req.message[:50]}")
+        logger.info(f"Using conversation ID: {conv_id}, message: {req.message[:50]}, mode: {req.mode}")
         
         # Add user message to conversation history
         ctx_manager.add_turn("user", req.message)
@@ -173,6 +174,68 @@ class ChatService:
         if self.is_greeting(req.message):
             greeting_response = self._stream_greeting(conversation_id=conv_id)
             return greeting_response
+        
+        # Route to appropriate handler based on mode
+        if req.mode == "agentic":
+            return self._process_agentic_stream(req, conv_id, ctx_manager)
+        else:
+            return self._process_rag_stream(req, conv_id, ctx_manager)
+    
+    def _process_agentic_stream(self, req: ChatRequest, conv_id: str, ctx_manager) -> StreamingResponse:
+        """Process chat request using agentic mode."""
+        logger.info(f"Processing agentic request for conversation {conv_id}")
+        
+        def sse_gen():
+            response_text = ""
+            try:
+                # Import agentic handler
+                from app.agentic.api_agent import APIAgent
+                
+                # Initialize agent with settings from config (same as RAG mode)
+                agent = APIAgent(
+                    model=self.ollama_model,
+                    temperature=self.temperature,
+                )
+                
+                # Run agent with conversation context
+                result = agent.sync_run(
+                    query=req.message,
+                    context_manager=ctx_manager,
+                )
+                
+                response_text = result.get("response", "No response generated")
+                
+                # Stream the response
+                yield f"data: {json.dumps({'type':'meta','sources': [], 'conversation_id': conv_id}, ensure_ascii=False)}\n\n"
+                
+                # Stream response in chunks
+                words = response_text.split()
+                for word in words:
+                    yield f"data: {json.dumps({'type':'delta','text': word + ' '}, ensure_ascii=False)}\n\n"
+                
+                yield f"data: {json.dumps({'type':'final','text': response_text}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type':'done'}, ensure_ascii=False)}\n\n"
+                
+                logger.info(f"Agentic processing completed for query, iterations={result.get('iterations', 0)}")
+                
+            except Exception as e:
+                logger.error(f"Error in agentic streaming: {e}")
+                error_msg = f'Error: {str(e)}'
+                response_text = error_msg
+                yield f"data: {json.dumps({'type':'meta','sources': [], 'conversation_id': conv_id}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type':'final','text': error_msg}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type':'done'}, ensure_ascii=False)}\n\n"
+            
+            finally:
+                # Add assistant response to conversation history
+                if response_text:
+                    ctx_manager.add_turn("assistant", response_text)
+        
+        return StreamingResponse(sse_gen(), media_type="text/event-stream")
+    
+    def _process_rag_stream(self, req: ChatRequest, conv_id: str, ctx_manager) -> StreamingResponse:
+        """Process chat request using RAG mode (original behavior)."""
+        logger.info(f"Processing RAG request for conversation {conv_id}")
         
         # Lazy import to avoid circular dependencies
         from app.rag.adaptive_rag import get_adaptive_rag
@@ -360,8 +423,11 @@ class ChatService:
         return StreamingResponse(sse_gen(), media_type="text/event-stream")
 
 
-# Initialize service with defaults
-_chat_service = ChatService()
+# Initialize service with defaults from settings
+_chat_service = ChatService(
+    ollama_model=settings.ollama_model,
+    temperature=settings.temperature,
+)
 
 @router.post("/chat/stream")
 def chat_stream(req: ChatRequest):
