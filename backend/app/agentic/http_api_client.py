@@ -66,12 +66,9 @@ class HTTPAPIClient:
             Users list or error dict
         """
         try:
-            users = self._make_request("GET", "/users")
-            return {
-                "success": True,
-                "data": users if isinstance(users, list) else users.get("data", []),
-                "message": f"Found {len(users) if isinstance(users, list) else 0} users",
-            }
+            response = self._make_request("GET", "/users")
+            # API already returns {success, data, message} format
+            return response
         except Exception as e:
             return {
                 "success": False,
@@ -89,12 +86,9 @@ class HTTPAPIClient:
             User data or error dict
         """
         try:
-            user = self._make_request("GET", f"/users/{user_id}")
-            return {
-                "success": True,
-                "data": user,
-                "message": f"User {user_id} retrieved",
-            }
+            response = self._make_request("GET", f"/users/{user_id}")
+            # API already returns {success, data, message} format
+            return response
         except Exception as e:
             return {
                 "success": False,
@@ -109,12 +103,9 @@ class HTTPAPIClient:
             Tasks list or error dict
         """
         try:
-            tasks = self._make_request("GET", "/tasks")
-            return {
-                "success": True,
-                "data": tasks if isinstance(tasks, list) else tasks.get("data", []),
-                "message": f"Found {len(tasks) if isinstance(tasks, list) else 0} tasks",
-            }
+            response = self._make_request("GET", "/tasks")
+            # API already returns {success, data, message} format
+            return response
         except Exception as e:
             return {
                 "success": False,
@@ -132,12 +123,9 @@ class HTTPAPIClient:
             Task data or error dict
         """
         try:
-            task = self._make_request("GET", f"/tasks/{task_id}")
-            return {
-                "success": True,
-                "data": task,
-                "message": f"Task {task_id} retrieved",
-            }
+            response = self._make_request("GET", f"/tasks/{task_id}")
+            # API already returns {success, data, message} format
+            return response
         except Exception as e:
             return {
                 "success": False,
@@ -160,12 +148,9 @@ class HTTPAPIClient:
                 "title": title,
                 "assigned_to": assigned_to or "",
             }
-            task = self._make_request("POST", "/tasks", json=payload)
-            return {
-                "success": True,
-                "data": task,
-                "message": f"Task '{title}' created",
-            }
+            response = self._make_request("POST", "/tasks", json=payload)
+            # API already returns {success, data, message} format
+            return response
         except Exception as e:
             return {
                 "success": False,
@@ -185,12 +170,9 @@ class HTTPAPIClient:
         """
         try:
             payload = {"status": status}
-            task = self._make_request("PUT", f"/tasks/{task_id}", json=payload)
-            return {
-                "success": True,
-                "data": task,
-                "message": f"Task {task_id} status updated to {status}",
-            }
+            response = self._make_request("PUT", f"/tasks/{task_id}", json=payload)
+            # API already returns {success, data, message} format
+            return response
         except Exception as e:
             return {
                 "success": False,
@@ -208,22 +190,26 @@ class HTTPAPIClient:
             Service status data or error dict
         """
         try:
-            service = self._make_request("GET", f"/services")
-            # Filter for specific service
-            services_list = service if isinstance(service, list) else service.get("data", [])
-            matching = [s for s in services_list if s.get("name") == service_name]
-            
-            if matching:
-                return {
-                    "success": True,
-                    "data": matching[0],
-                    "message": f"Service {service_name} status retrieved",
-                }
+            response = self._make_request("GET", f"/services")
+            # API returns {success, data: [...]} format, extract data
+            if response.get("success") and isinstance(response.get("data"), list):
+                services_list = response.get("data", [])
+                matching = [s for s in services_list if s.get("name") == service_name]
+                
+                if matching:
+                    return {
+                        "success": True,
+                        "data": matching[0],
+                        "message": f"Service {service_name} status retrieved",
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "error": f"Service {service_name} not found",
+                    }
             else:
-                return {
-                    "success": False,
-                    "error": f"Service {service_name} not found",
-                }
+                # If getting all services fails, return error
+                return response
         except Exception as e:
             return {
                 "success": False,
@@ -241,12 +227,9 @@ class HTTPAPIClient:
             Service status or error dict
         """
         try:
-            result = self._make_request("POST", f"/services/{service_name}/restart")
-            return {
-                "success": True,
-                "data": result,
-                "message": f"Service {service_name} restart initiated",
-            }
+            response = self._make_request("POST", f"/services/{service_name}/restart")
+            # API already returns {success, data, message} format
+            return response
         except Exception as e:
             return {
                 "success": False,

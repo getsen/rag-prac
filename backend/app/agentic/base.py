@@ -71,6 +71,30 @@ class AgenticBase(ABC):
         """
         pass
     
+    def validate_tool_parameters(
+        self,
+        tool_name: str,
+        tool_input: Dict[str, Any],
+        query: str,
+    ) -> tuple[bool, Dict[str, Any], str]:
+        """
+        Validate and collect parameters for a tool.
+        
+        Subclasses can override this to implement parameter validation.
+        
+        Args:
+            tool_name: Name of the tool
+            tool_input: Parameters provided in Action Input
+            query: Original user query
+            
+        Returns:
+            Tuple of (parameters_valid, parameters_dict, error_or_prompt)
+            - If parameters_valid is True, tool can execute
+            - If False, error_or_prompt contains the message to send to user
+        """
+        # Default: all parameters are valid if tool_input is provided
+        return True, tool_input, ""
+    
     async def execute_tool(self, tool_name: str, tool_input: Dict[str, Any]) -> Any:
         """
         Execute a tool with the given input.
@@ -163,13 +187,31 @@ class AgenticBase(ABC):
                     
                     logger.info(f"Executing tool: {tool_name}")
                     
+                    # Validate parameters (can prompt user for missing info)
+                    params_valid, validated_input, error_or_prompt = self.validate_tool_parameters(
+                        tool_name=tool_name,
+                        tool_input=tool_input,
+                        query=query,
+                    )
+                    
+                    if not params_valid:
+                        # Parameters are missing - return with user prompt
+                        logger.info(f"Parameters missing for tool '{tool_name}'. Prompting user.")
+                        return {
+                            "response": error_or_prompt,
+                            "reasoning": reasoning_steps,
+                            "tools_used": tools_used,
+                            "iterations": iteration,
+                            "pending_tool": tool_name,
+                        }
+                    
                     try:
-                        tool_result = await self.execute_tool(tool_name, tool_input)
+                        tool_result = await self.execute_tool(tool_name, validated_input)
                         processed_result = self.process_tool_result(tool_name, tool_result)
                         
                         tools_used.append({
                             "tool": tool_name,
-                            "input": tool_input,
+                            "input": validated_input,
                             "output": processed_result[:500],  # Truncate for logging
                         })
                         

@@ -185,20 +185,20 @@ class ChatService:
         """Process chat request using agentic mode."""
         logger.info(f"Processing agentic request for conversation {conv_id}")
         
-        def sse_gen():
+        async def sse_gen():
             response_text = ""
             try:
-                # Import agentic handler
-                from app.agentic.api_agent import APIAgent
+                # Import MCP-based agentic handler
+                from app.agentic.mcp_api_agent import MCPAPIAgent
                 
-                # Initialize agent with settings from config (same as RAG mode)
-                agent = APIAgent(
+                # Initialize agent with settings from config
+                agent = MCPAPIAgent(
                     model=self.ollama_model,
                     temperature=self.temperature,
                 )
                 
                 # Run agent with conversation context
-                result = agent.sync_run(
+                result = await agent.run(
                     query=req.message,
                     context_manager=ctx_manager,
                 )

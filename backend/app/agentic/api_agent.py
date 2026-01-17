@@ -7,6 +7,8 @@ import logging
 from typing import Any, Dict
 from app.agentic.base import AgenticBase
 from app.agentic.external_api_tools import get_api_tools
+from app.agentic.tool_definitions import get_tool_definition, get_all_tool_definitions
+from app.agentic.parameter_collector import ParameterCollector
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +37,7 @@ class APIAgent(AgenticBase):
             max_iterations=max_iterations,
         )
         self.api_tools = get_api_tools()
+        self.parameter_collector = ParameterCollector()  # For managing missing parameters
     
     def get_tools(self) -> Dict[str, Any]:
         """
@@ -53,6 +56,175 @@ class APIAgent(AgenticBase):
             "get_service_status": self.api_tools.get_service_status,
             "restart_service": self.api_tools.restart_service,
         }
+    
+    def extract_parameters_from_query(self, tool_name: str, query: str) -> Dict[str, Any]:
+        """
+        Extract parameters for a tool from user query using LLM.
+        
+        Args:
+            tool_name: Name of the tool
+            query: User query text
+            
+        Returns:
+            Dictionary of extracted parameters
+        """
+        tool_def = get_tool_definition(tool_name)
+        if not tool_def or not tool_def.get_required_parameters():
+            return {}
+        
+        # Build extraction prompt
+        params_desc = "\n".join([
+            f"- {p.name}: {p.description}"
+            for p in tool_def.get_required_parameters()
+        ])
+        
+        extraction_prompt = f"""Extract parameters for the tool '{tool_name}' from the user query.
+
+User Query: {query}
+
+Required Parameters:
+{params_desc}
+
+Extract and return the parameters as JSON. If a parameter is not found in the query, omit it.
+Only return the JSON object with extracted parameters, nothing else.
+Example format: {{"user_id": "user1"}}"""
+        
+        try:
+            response_chunks = []
+            from app.llm.ollama.ollama_client_stream import ollama_generate_stream
+            
+            for chunk in ollama_generate_stream(
+                model=self.model,
+                prompt=extraction_prompt,
+                temperature=0.1,  # Low temperature for accurate extraction
+            ):
+                response_chunks.append(chunk)
+            
+            response = "".join(response_chunks).strip()
+            
+            # Try to parse JSON response
+            import json
+            # Extract JSON from response (may contain extra text)
+            start_idx = response.find("{")
+            end_idx = response.rfind("}") + 1
+            
+            if start_idx != -1 and end_idx > start_idx:
+                json_str = response[start_idx:end_idx]
+                extracted = json.loads(json_str)
+                logger.info(f"Extracted parameters for '{tool_name}': {extracted}")
+                return extracted
+            
+            logger.warning(f"Could not extract JSON from LLM response: {response}")
+            return {}
+            
+        except Exception as e:
+            logger.error(f"Error extracting parameters: {str(e)}")
+            return {}
+    
+    def validate_and_collect_parameters(
+        self,
+        tool_name: str,
+        tool_input: Dict[str, Any],
+        query: str,
+    ) -> tuple[bool, Dict[str, Any], str]:
+        """
+        Validate parameters for a tool and collect missing ones.
+        
+        Args:
+            tool_name: Name of the tool
+            tool_input: Parameters provided in Action Input
+            query: Original user query
+            
+        Returns:
+            Tuple of (parameters_available, collected_params, user_prompt)
+            - If parameters_available is True, tool can execute
+            - If False, user_prompt contains message asking for missing info
+        """
+        tool_def = get_tool_definition(tool_name)
+        if not tool_def:
+            return False, tool_input, f"Tool '{tool_name}' not found"
+        
+        # First try to extract parameters from the query
+        extracted = self.extract_parameters_from_query(tool_name, query)
+        provided = {**tool_input, **extracted}  # Merge with provided params
+        
+        # Validate parameters
+        is_valid, missing = tool_def.validate_parameters(provided)
+        
+        if is_valid:
+            return True, provided, ""
+        
+        # Parameters missing - start collection
+        has_all, prompt = self.parameter_collector.start_collection(
+            tool_name=tool_name,
+            provided_parameters=provided,
+            context={"original_query": query},
+        )
+        
+        logger.info(
+            f"Missing parameters for '{tool_name}': {missing}. "
+            f"Prompting user for: {prompt}"
+        )
+        
+        return has_all, provided, prompt
+    
+    def process_parameter_response(
+        self,
+        user_response: str,
+    ) -> tuple[bool, Dict[str, Any], str]:
+        """
+        Process user's response to a parameter request.
+        
+        Args:
+            user_response: User's response text
+            
+        Returns:
+            Tuple of (parameters_complete, collected_params, next_prompt)
+        """
+        if not self.parameter_collector.get_pending_tool():
+            return False, {}, "No pending parameter collection"
+        
+        # Extract parameters from user response
+        tool_name = self.parameter_collector.get_pending_tool()
+        extracted = self.extract_parameters_from_query(tool_name, user_response)
+        
+        # Add to collector
+        has_all, prompt = self.parameter_collector.add_parameters(
+            user_response=user_response,
+            extracted_params=extracted,
+        )
+        
+        if has_all:
+            params = self.parameter_collector.get_collected_parameters()
+            self.parameter_collector.reset()
+            return True, params, ""
+        
+        return False, {}, prompt
+    
+    def validate_tool_parameters(
+        self,
+        tool_name: str,
+        tool_input: Dict[str, Any],
+        query: str,
+    ) -> tuple[bool, Dict[str, Any], str]:
+        """
+        Override to validate and collect parameters for API tools.
+        
+        Args:
+            tool_name: Name of the tool
+            tool_input: Parameters provided in Action Input
+            query: Original user query
+            
+        Returns:
+            Tuple of (parameters_valid, parameters_dict, error_or_prompt)
+        """
+        params_available, collected_params, prompt = self.validate_and_collect_parameters(
+            tool_name=tool_name,
+            tool_input=tool_input,
+            query=query,
+        )
+        
+        return params_available, collected_params, prompt
     
     def process_tool_result(self, tool_name: str, tool_result: Any) -> str:
         """
